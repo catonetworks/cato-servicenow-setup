@@ -6,7 +6,7 @@
         var dict = new GlideRecord('sys_dictionary'); dict.addQuery('name', table); dict.addQuery('element', 'u_key'); dict.query();
         require(dict.next() && String(dict.getValue('unique')) === '1', 'MISSING_UNIQUE_KEY_' + table);
     });
-    ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'api_key', 'receiver_user', 'state_profile', 'resolution_code'].forEach(function (key) {
+    ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'api_key', 'receiver_user', 'state_profile', 'priority_profile', 'resolution_code'].forEach(function (key) {
         require(Boolean(gs.getProperty('cato_sync.' + key, '')), 'MISSING_CONFIG_' + key);
     });
     var user = new GlideRecord('sys_user');

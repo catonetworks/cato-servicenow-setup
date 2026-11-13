@@ -169,7 +169,13 @@ CatoSyncHub.prototype = {
                 var current = {title: String(incident.getValue('short_description')), priority: Number(incident.getValue('priority')), state: this.state(incident)};
                 Object.keys(body.fields).forEach(function (field) { if (current[field] !== body.expected[field]) throw new Error('FIELD_CONFLICT'); });
                 if (body.fields.title !== undefined) incident.setValue('short_description', body.fields.title);
-                if (body.fields.priority !== undefined) incident.setValue('priority', body.fields.priority);
+                if (body.fields.priority !== undefined) {
+                    var priorities = JSON.parse(this.property('priority_profile'));
+                    var inputs = priorities[String(body.fields.priority)];
+                    if (!inputs || !inputs.impact || !inputs.urgency) throw new Error('PRIORITY_PROFILE_REQUIRED');
+                    incident.setValue('impact', inputs.impact); incident.setValue('urgency', inputs.urgency);
+                    incident.setValue('priority', body.fields.priority);
+                }
                 if (body.fields.state !== undefined) {
                     var profile = JSON.parse(this.property('state_profile'));
                     if (body.fields.state.indexOf('AWAITING_') === 0) { incident.setValue('state', profile.ON_HOLD); incident.setValue('hold_reason', profile[body.fields.state]); }
@@ -191,6 +197,12 @@ CatoSyncHub.prototype = {
             try { if (!incident.update()) throw new Error('LOCAL_UPDATE_FAILED'); }
             finally { gs.getSession().putClientData('cato_sync_journal_effect', ''); }
         }
+        if (body.kind === 'PATCH') {
+            var verified = new GlideRecord('incident');
+            if (!verified.get(body.recordId)) throw new Error('LOCAL_EFFECT_MISMATCH');
+            var actual = {title: String(verified.getValue('short_description')), priority: Number(verified.getValue('priority')), state: this.state(verified)};
+            Object.keys(body.fields).forEach(function (field) { if (actual[field] !== body.fields[field]) throw new Error('LOCAL_EFFECT_MISMATCH'); });
+        }
         if (body.kind === 'LINK') state.setValue('u_ticket_id', body.ticketId);
         state.setValue('u_next_sequence', body.sequence + 1);
         if (!state.update()) throw new Error('LOCAL_STATE_UPDATE_FAILED');
@@ -211,7 +223,7 @@ CatoSyncHub.prototype = {
                 if (!this.apply(body, incident)) { this.finish(row, {u_state: 'PENDING'}); continue; }
                 this.finish(row, {u_state: 'APPLIED', u_error: ''});
             } catch (error) {
-                if (['FIELD_CONFLICT', 'RECORD_NOT_OWNED', 'UNSUPPORTED_TRANSITION'].indexOf(error.message) >= 0)
+                if (['FIELD_CONFLICT', 'RECORD_NOT_OWNED', 'UNSUPPORTED_TRANSITION', 'LOCAL_EFFECT_MISMATCH', 'PRIORITY_PROFILE_REQUIRED'].indexOf(error.message) >= 0)
                     this.finish(row, {u_state: 'FAILED', u_error: error.message});
                 else this.retry(row, 'LOCAL_APPLY_FAILED', 0);
             }

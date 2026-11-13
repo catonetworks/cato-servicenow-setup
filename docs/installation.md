@@ -21,9 +21,10 @@ This preview is for an isolated synthetic routing group. Use a setup administrat
 | `api_key` | Encrypted **Password (2 Way Encrypted)** property containing the local gateway API key |
 | `receiver_user` | Dedicated runtime user's sys_id |
 | `state_profile` | JSON mapping NEW, IN_PROGRESS, ON_HOLD, RESOLVED and AWAITING_CALLER, AWAITING_VENDOR, AWAITING_CHANGE to this instance's actual state/hold_reason choice values |
+| `priority_profile` | JSON map from each priority 1–5 to verified synthetic `impact` and `urgency` inputs |
 | `resolution_code` | Valid synthetic resolution choice on this instance |
 
-Inspect `sys_choice` and the incident data policies to populate the profile. Do not assume numeric choice values across releases. Priority derivation rules must be verified with the synthetic profile: if native impact/urgency calculation overrides direct priority writes, keep capture disabled until an explicit synthetic mapping is configured and tested. Production urgency mapping is outside this package.
+Inspect `sys_choice` and the incident data policies to populate the profile. Do not assume numeric choice values across releases. Priority derivation rules must be verified with the synthetic profile: configure explicit synthetic impact/urgency inputs in `priority_profile` and verify all five outcomes. The receiver checks persisted field values after application and blocks the stream on an effect mismatch. Production urgency mapping is outside this package.
 
 ## Acceptance gate
 
