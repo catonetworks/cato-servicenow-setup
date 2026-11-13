@@ -220,7 +220,7 @@ CatoSyncHub.prototype = {
             if (body.kind === 'JOURNAL') {
                 var exact = new GlideRecord('sys_journal_field');
                 if (!exact.get('u_cato_sync_effect_key', body.operationId)) {
-                    incident.setValue('comments', body.journal.body);
+                    incident.comments.setJournalEntry(body.journal.body);
                     gs.getSession().putClientData('cato_sync_journal_effect', body.operationId);
                 }
             }
@@ -233,6 +233,13 @@ CatoSyncHub.prototype = {
             if (!verified.get(body.recordId)) throw new Error('LOCAL_EFFECT_MISMATCH');
             var actual = {title: String(verified.getValue('short_description')), priority: Number(verified.getValue('priority')), state: this.state(verified)};
             Object.keys(body.fields).forEach(function (field) { if (actual[field] !== body.fields[field]) throw new Error('LOCAL_EFFECT_MISMATCH'); });
+        }
+        if (body.kind === 'JOURNAL') {
+            var written = new GlideRecord('sys_journal_field');
+            if (!written.get('u_cato_sync_effect_key', body.operationId)
+                || String(written.getValue('element_id')) !== body.recordId
+                || String(written.getValue('element')) !== 'comments'
+                || String(written.getValue('value')) !== body.journal.body) throw new Error('LOCAL_EFFECT_MISMATCH');
         }
         if (body.kind === 'LINK') state.setValue('u_ticket_id', body.ticketId);
         state.setValue('u_next_sequence', body.sequence + 1);

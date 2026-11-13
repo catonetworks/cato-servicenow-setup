@@ -89,3 +89,16 @@ test('unproven source capture never constructs an external request',()=>{
   hub.sourceCommitted=()=>false;hub.retry=(work,code)=>{reason=code;};
   hub.dispatch();assert.equal(reason,'SOURCE_COMMIT_NOT_PROVEN');
 });
+test('journal application uses supported API and requires exact committed effect before advancing',()=>{
+  let written, updates=0, next=1, journalCalls=0;
+  const body={...base,kind:'JOURNAL',journal:{body:'same',visibility:'PUBLIC'}};
+  const c=runtime({GlideRecord:function(){this.get=()=>Boolean(written);this.getValue=k=>written?.[k];},
+    gs:{getSession:()=>({putClientData:()=>{}})}});
+  const hub=new c.CatoSyncHub();hub.ledger=()=>({getValue:()=>next,setValue:(k,v)=>{next=v;},update:()=>1});
+  let marker='';const incident={getValue:()=>marker,setValue:(k,v)=>{marker=v;},
+    comments:{setJournalEntry:()=>{journalCalls++;}},update:()=>{updates++;written={element_id:body.recordId,element:'comments',value:body.journal.body};return 1;}};
+  assert.equal(hub.apply(body,incident),true);assert.equal(next,2);assert.equal(journalCalls,1);
+  next=1;assert.equal(hub.apply(body,incident),true);assert.equal(updates,1);
+  next=1;written=undefined;assert.throws(()=>hub.apply(body,incident),/LOCAL_EFFECT_MISMATCH/);
+  assert.equal(next,1);assert.equal(updates,1);
+});
