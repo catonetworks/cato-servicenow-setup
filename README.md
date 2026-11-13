@@ -2,7 +2,7 @@
 
 Reference capture and receiver scripts for synthetic ServiceNow incidents synchronized through Sync Hub. **Draft: licensing unresolved.** This repository does not yet grant an open-source license. Do not distribute it as a licensed release.
 
-**Keep capture disabled pending native verification.** Version 0.2 moves capture to before rules that abort source writes on outbox failure. Dispatch requires an exact persisted journal row or incident-operation marker/audit entry, so an orphan outbox row cannot prove a source commit. Native source-abort and commit-evidence tests are still pending. See the [native acceptance record](docs/native-acceptance.md).
+**Enable only for the isolated synthetic profile after its acceptance checks.** Version 0.2 moves capture to before rules that abort source writes on outbox failure. Dispatch requires an exact persisted journal row or incident-operation marker/audit entry, so an orphan outbox row cannot prove a source commit. Native source-abort, commit-evidence, restricted OAuth, ordered application, and journal recovery checks passed on the Brazil sandbox. The full vendor round trip and priority-5 fixture remain pending. See the [native acceptance record](docs/native-acceptance.md).
 
 The preview records exact incident revisions and journal rows in an outbox. The customer-owned receiver accepts version-1 deliveries into an inbox before returning HTTP 202; a scheduled processor applies them in sequence. A receiver acknowledgment proves inbox storage, not completed incident application.
 
