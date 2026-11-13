@@ -28,8 +28,22 @@ Native testing exposed that `GlideRecord.setValue` ignores journal fields. The r
 
 Installation history: `dba1ae99c36c5b50e776b523e40131b9`; receiver journal correction: `01c2629dc36c5b50e776b523e4013159`. Capture is paused between test windows; temporary failure rules remain inactive for inspection.
 
+## Approved priority fixture and real OAuth pipeline
+
+The isolated fixture in `sandbox/install-priority-fixture.js` was approved and installed (history `168a6e5dc3ac5b50e776b523e40131fa`). Native checks in history `a9aa229dc3ac5b50e776b523e40131c3` passed: incident `65aa269dc3ac5b50e776b523e4013144` created and retained priority 5, then changed to 4 using impact 2 / urgency 3. Unprefixed control `52aa669dc3ac5b50e776b523e401314a` and out-of-group control `96aa669dc3ac5b50e776b523e4013175` remained at native priority 4. The shared matrix was not changed.
+
+Brazil rejected the deprecated `GlideEncrypter` API. The implementation now uses `sn_cc.StandardCredentialsProvider` with an active API Key Credential; encrypted-at-rest retrieval and authenticated GraphQL returned HTTP 200. The legacy property was cleared, and only `gateway_credential_id` is stored in properties. Compatibility installation history: `9e6ce251c3ec5b50e776b523e4013145`.
+
+Fresh incident `898ca691c3ec5b50e776b523e401316a` created Zendesk ticket `849649` through the containerized service. Receiver LINK applied. Two same-text public comments and a private work note each reached Zendesk separately. An explicit Zendesk **Test webhook** notification suppressed the original operation echoes. Subsequent synthetic Zendesk updates, normalized after another signed test notification, applied title, priority 2 and In Progress. Reverse journals `799eea95c3ec5b50e776b523e40131b3` and `f59eea95c3ec5b50e776b523e40131ee` were distinct despite identical text and retained exact operation markers; the Zendesk private note was absent. A genuine Zendesk low/pending update applied as native priority 4/On Hold/Awaiting Caller.
+
+The initial tests used explicit provider-signed notifications. A subsequent fresh automatic round trip required no Test webhook: incident `43c2b69dc3ec5b50e776b523e401313d` created Zendesk ticket `849652`; ordinary notifications applied its updated title, public journal `39e2be9dc3ec5b50e776b523e401312e` (operation `d89ea526-6dd0-43d1-9cdc-55125b1dc3ab`), and resolution. Native inspection confirmed state 6, priority 5, and the configured close code/notes. Ordinary notification IDs: `01M7ATP99E5B51TMCZ8KB6PW83` and `01M7ATQM9M5491MFHPFM3K0SNN`. Creation echo `01M7ATNW9MBX88GFDXFMK82J39` was ignored.
+
+Incident `f0217ad9c3ec5b50e776b523e401312b` also created and resolved ticket `849650` through ordered outbound delivery. The synthetic Zendesk mapping revision supplies its required Type and Urgency only at creation. The sandbox notification trigger uses the persistent synthetic tag because a shared solve rule changes ticket groups; the shared close rule excludes that tag to preserve supported resolution.
+
+Capture and receiver application are paused with `cato_sync.enabled=false`; the local integration and dedicated webhook are paused and the temporary tunnel is stopped. Durable state is retained. Pause history: `48637211c3209b50e776b523e40131e0`.
+
 ## Outstanding checks
 
-The full ServiceNow–Zendesk round trip remains pending. The sandbox's priority matrix maps impact 3 / urgency 3 to priority 4 and overrides direct priority-5 writes; an isolated synthetic override needs approval before the priority-5 live scenario. Ten local Node tests pass; these are separate from the native evidence above.
+Automatic delivery passed on the fresh fixture above. Provider-side rate-limit/lost-response injection remains unclaimed. Thirteen local Node tests pass; these are separate from the native evidence above.
 
 Licensing remains unresolved. Keep the installer PR draft regardless of test results.
