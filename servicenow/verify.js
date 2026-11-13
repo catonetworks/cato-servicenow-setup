@@ -1,0 +1,30 @@
+(function verify() {
+    var failures = [];
+    function require(value, code) { if (!value) failures.push(code); }
+    ['u_cato_sync_state', 'u_cato_sync_outbox', 'u_cato_sync_inbox'].forEach(function (table) {
+        var row = new GlideRecord(table); require(row.isValid(), 'MISSING_TABLE_' + table);
+        var dict = new GlideRecord('sys_dictionary'); dict.addQuery('name', table); dict.addQuery('element', 'u_key'); dict.query();
+        require(dict.next() && String(dict.getValue('unique')) === '1', 'MISSING_UNIQUE_KEY_' + table);
+    });
+    ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'api_key', 'receiver_user', 'state_profile', 'resolution_code'].forEach(function (key) {
+        require(Boolean(gs.getProperty('cato_sync.' + key, '')), 'MISSING_CONFIG_' + key);
+    });
+    var user = new GlideRecord('sys_user');
+    require(user.get(gs.getProperty('cato_sync.receiver_user', '')), 'RECEIVER_USER_MISSING');
+    if (user.isValidRecord()) {
+        require(String(user.getValue('web_service_access_only')) === '1', 'RECEIVER_NOT_WEB_SERVICE_ONLY');
+        var roles = new GlideRecord('sys_user_has_role'); roles.addQuery('user', user.getUniqueValue()); roles.query();
+        var receiver = false;
+        while (roles.next()) {
+            var name = String(roles.role.name);
+            if (name === 'cato_sync.receiver') receiver = true;
+            else if (name !== 'snc_internal') failures.push('RECEIVER_EXTRA_ROLE');
+        }
+        require(receiver, 'RECEIVER_ROLE_MISSING');
+    }
+    require(String(gs.getProperty('glide.buildname', '')) !== '', 'RELEASE_UNKNOWN');
+    gs.info(JSON.stringify({packageVersion: '0.1.0', release: gs.getProperty('glide.buildname', ''),
+        enabled: gs.getProperty('cato_sync.enabled', 'false'), failures: failures,
+        remaining: ['Verify physical unique indexes', 'Run rollback/claim/journal/restart acceptance', 'Verify OAuth receiver succeeds and Table API is denied']}));
+    if (failures.length) throw new Error('CATO_SYNC_VERIFICATION_FAILED');
+})();
