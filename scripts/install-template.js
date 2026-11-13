@@ -36,6 +36,7 @@
             field(table, 'u_claim', 'string', 32); field(table, 'u_lease_until', 'glide_date_time');
             field(table, 'u_next_attempt', 'glide_date_time'); field(table, 'u_error', 'string', 80);
             if (table === 'u_cato_sync_inbox') { field(table, 'u_stream_key', 'string', 80, true); field(table, 'u_sequence', 'integer'); }
+            if (table === 'u_cato_sync_outbox') field(table, 'u_proof_kind', 'string', 24);
         }
         ['create', 'read', 'write', 'delete'].forEach(function (operation) {
             var acl = upsert('sys_security_acl', {name: table, operation: operation, type: 'record'},
@@ -52,8 +53,14 @@
         });
     });
     field('incident', 'u_cato_sync_last_delivery', 'string', 36);
+    field('incident', 'u_cato_sync_source_event', 'string', 80);
+    field('incident', 'u_cato_sync_created_event', 'string', 80);
+    var incidentDictionary = new GlideRecord('sys_dictionary');
+    incidentDictionary.addQuery('name', 'incident'); incidentDictionary.addNullQuery('element'); incidentDictionary.query();
+    if (!incidentDictionary.next() || ['true', '1'].indexOf(String(incidentDictionary.getValue('audit'))) < 0)
+        throw new Error('Incident auditing must be enabled before installing commit-evidence capture');
     field('sys_journal_field', 'u_cato_sync_effect_key', 'string', 36);
-    ['incident.u_cato_sync_last_delivery', 'sys_journal_field.u_cato_sync_effect_key'].forEach(function (name) {
+    ['incident.u_cato_sync_last_delivery', 'incident.u_cato_sync_source_event', 'incident.u_cato_sync_created_event', 'sys_journal_field.u_cato_sync_effect_key'].forEach(function (name) {
         ['create', 'write'].forEach(function (operation) {
             var acl = upsert('sys_security_acl', {name: name, operation: operation, type: 'record'},
                 {active: true, admin_overrides: true, script: 'answer = gs.hasRole("admin");'});
@@ -67,9 +74,9 @@
         upsert('sys_script', {name: name, collection: table}, {active: true, advanced: true, when: when,
             action_insert: insert, action_update: update, action_delete: false, action_query: false, order: order, script: sources[filename]});
     }
-    rule('Cato Sync incident capture v1', 'incident', 'after', true, true, 900, 'incident-rule.js');
+    rule('Cato Sync incident capture v1', 'incident', 'before', true, true, 1000000, 'incident-rule.js');
     rule('Cato Sync journal effect v1', 'sys_journal_field', 'before', true, false, 50, 'journal-marker-rule.js');
-    rule('Cato Sync journal capture v1', 'sys_journal_field', 'after', true, false, 900, 'journal-rule.js');
+    rule('Cato Sync journal capture v1', 'sys_journal_field', 'before', true, false, 1000000, 'journal-rule.js');
     var api = upsert('sys_ws_definition', {service_id: 'cato_sync'}, {name: 'Cato Sync sandbox receiver', active: true, namespace: 'global'});
     upsert('sys_ws_operation', {web_service_definition: api, name: 'Receive v1'}, {
         http_method: 'POST', relative_path: '/v1/receive', active: true, requires_authentication: true,
@@ -79,6 +86,6 @@
         upsert('sysauto_script', {name: 'Cato Sync ' + method + ' v1'}, {active: true, run_type: 'periodically',
             run_period: '1970-01-01 00:00:05', script: 'new CatoSyncHub().' + method + '();'});
     });
-    upsert('sys_properties', {name: 'cato_sync.package_version'}, {value: '0.1.0', type: 'string'});
-    gs.info('Cato Sync 0.1.0 installed DISABLED. Run release verification and configure dedicated OAuth before enabling.');
+    upsert('sys_properties', {name: 'cato_sync.package_version'}, {value: '0.2.0', type: 'string'});
+    gs.info('Cato Sync 0.2.0 installed DISABLED. Verify source abort and commit evidence before enabling.');
 })();

@@ -24,8 +24,9 @@ CatoSyncHub.prototype = {
     source: function (incident) {
         return {instance: this.property('instance_origin'), table: 'incident', recordId: String(incident.getUniqueValue()), revision: Number(incident.getValue('sys_mod_count') || 0)};
     },
+    timestamp: function () { return String(new GlideDateTime().getValue()).replace(' ', 'T') + 'Z'; },
     envelope: function (incident, id, kind) {
-        return {schemaVersion: 1, integrationId: this.integration(), eventId: id, kind: kind, source: this.source(incident), occurredAt: String(incident.getValue('sys_updated_on')).replace(' ', 'T') + 'Z'};
+        return {schemaVersion: 1, integrationId: this.integration(), eventId: id, kind: kind, source: this.source(incident), occurredAt: this.timestamp()};
     },
     ledger: function (recordId) {
         var row = new GlideRecord('u_cato_sync_state');
@@ -35,7 +36,7 @@ CatoSyncHub.prototype = {
         }
         return row;
     },
-    enqueue: function (event) {
+    enqueue: function (event, proofKind) {
         var payload = CatoSyncRules.canonical(event);
         if (String(GlideStringUtil.base64Encode(payload)).length > 327680) throw new Error('PAYLOAD_TOO_LARGE');
         var row = new GlideRecord('u_cato_sync_outbox');
@@ -45,18 +46,24 @@ CatoSyncHub.prototype = {
         }
         row.initialize(); row.setValue('u_key', event.eventId); row.setValue('u_record', event.source.recordId);
         row.setValue('u_payload', payload); row.setValue('u_state', 'PENDING'); row.setValue('u_attempts', 0);
+        row.setValue('u_proof_kind', proofKind);
         if (!row.insert()) throw new Error('OUTBOX_INSERT_FAILED');
     },
     captureIncident: function (current, previous) {
         if (!this.enabled() || !this.eligible(current)) return;
         var recordId = String(current.getUniqueValue());
-        var state = this.ledger(recordId);
+        this.ledger(recordId);
         var fields = {title: String(current.getValue('short_description')), priority: CatoSyncRules.priority(current.getValue('priority')), state: this.state(current)};
-        var created = new GlideRecord('u_cato_sync_outbox');
-        if (!created.get('u_key', 'create:' + recordId)) {
+        var revision = current.operation() === 'insert' ? 0 : Number(previous.getValue('sys_mod_count') || 0) + 1;
+        if (!current.getValue('u_cato_sync_created_event')) {
             if (fields.state !== 'NEW') throw new Error('INITIAL_STATE_NOT_SUPPORTED');
-            var initial = this.envelope(current, 'create:' + recordId, 'CREATE');
-            fields.description = String(current.getValue('description') || ''); initial.fields = fields; this.enqueue(initial); return;
+            var initial = this.envelope(current, 'create:' + gs.generateGUID(), 'CREATE');
+            initial.source.revision = revision;
+            fields.description = String(current.getValue('description') || ''); initial.fields = fields;
+            this.enqueue(initial, 'INCIDENT_OPERATION');
+            current.setValue('u_cato_sync_created_event', initial.eventId);
+            current.setValue('u_cato_sync_source_event', initial.eventId);
+            return;
         }
         var change = {};
         if (current.short_description.changes()) change.title = fields.title;
@@ -69,8 +76,10 @@ CatoSyncHub.prototype = {
             Object.keys(change).forEach(function (key) { if (own[key] === change[key]) delete change[key]; });
         }
         if (Object.keys(change).length) {
-            var event = this.envelope(current, 'incident:' + recordId + ':' + current.getValue('sys_mod_count'), 'PATCH');
-            event.fields = change; this.enqueue(event);
+            var event = this.envelope(current, 'incident:' + gs.generateGUID(), 'PATCH');
+            event.source.revision = revision;
+            event.fields = change; this.enqueue(event, 'INCIDENT_OPERATION');
+            current.setValue('u_cato_sync_source_event', event.eventId);
         }
     },
     captureJournal: function (journal) {
@@ -81,10 +90,30 @@ CatoSyncHub.prototype = {
         if (!incident.get(String(journal.getValue('element_id'))) || !this.eligible(incident)) return;
         this.ledger(String(incident.getUniqueValue()));
         var event = this.envelope(incident, 'journal:' + journal.getUniqueValue(), 'JOURNAL');
-        event.occurredAt = String(journal.getValue('sys_created_on')).replace(' ', 'T') + 'Z';
         event.journal = {id: String(journal.getUniqueValue()), body: String(journal.getValue('value') || ''),
             author: String(journal.getValue('sys_created_by') || 'unknown'), visibility: element === 'comments' ? 'PUBLIC' : 'PRIVATE'};
-        this.enqueue(event);
+        this.enqueue(event, 'JOURNAL_ROW');
+    },
+    sourceCommitted: function (row, event) {
+        if (String(row.getValue('u_key')) !== event.eventId || String(row.getValue('u_record')) !== event.source.recordId) return false;
+        var proofKind = String(row.getValue('u_proof_kind') || '');
+        if (proofKind === 'JOURNAL_ROW' && event.kind === 'JOURNAL') {
+            var journal = new GlideRecord('sys_journal_field');
+            return journal.get(event.journal.id) && String(journal.getValue('element_id')) === event.source.recordId
+                && String(journal.getValue('element')) === (event.journal.visibility === 'PUBLIC' ? 'comments' : 'work_notes')
+                && String(journal.getValue('value') || '') === event.journal.body
+                && !journal.getValue('u_cato_sync_effect_key');
+        }
+        if (proofKind !== 'INCIDENT_OPERATION' || ['CREATE', 'PATCH'].indexOf(event.kind) < 0) return false;
+        var incident = new GlideRecord('incident');
+        if (!incident.get(event.source.recordId)) return false;
+        if (String(incident.getValue('u_cato_sync_source_event')) === event.eventId) return true;
+        if (event.kind === 'CREATE' && String(incident.getValue('u_cato_sync_created_event')) === event.eventId) return true;
+        var audit = new GlideRecord('sys_audit');
+        audit.addQuery('tablename', 'incident'); audit.addQuery('documentkey', event.source.recordId);
+        audit.addQuery('fieldname', 'u_cato_sync_source_event'); audit.addQuery('newvalue', event.eventId);
+        audit.setLimit(1); audit.query();
+        return audit.next();
     },
     receive: function (body) {
         CatoSyncRules.receiver(body, this.integration());
@@ -143,13 +172,15 @@ CatoSyncHub.prototype = {
         while (rows.next()) {
             var row = this.claim('u_cato_sync_outbox', String(rows.getUniqueValue())); if (!row) continue;
             try {
+                var event = JSON.parse(String(row.getValue('u_payload')));
+                if (!this.sourceCommitted(row, event)) { this.retry(row, 'SOURCE_COMMIT_NOT_PROVEN', 5); continue; }
                 var url = this.property('gateway_url');
                 if (!/^https:\/\/[a-zA-Z0-9.-]+\/graphql$/.test(url)) throw new Error('INVALID_GATEWAY_URL');
                 var message = new sn_ws.RESTMessageV2(); message.setEndpoint(url); message.setHttpMethod('POST'); message.setHttpTimeout(20000);
                 message.setRequestHeader('Content-Type', 'application/json');
                 message.setRequestHeader('x-api-key', new GlideEncrypter().decrypt(this.property('api_key')));
                 message.setRequestBody(JSON.stringify({query: 'mutation Accept($accountId: ID!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { id result state } } }',
-                    variables: {accountId: this.property('account_id'), event: JSON.parse(String(row.getValue('u_payload')))}}));
+                    variables: {accountId: this.property('account_id'), event: event}}));
                 var response = message.execute(); var status = response.getStatusCode();
                 if (status < 200 || status >= 300) { this.retry(row, 'HUB_HTTP_' + status, Number(response.getHeader('Retry-After')) || 0); continue; }
                 var result = JSON.parse(response.getBody());

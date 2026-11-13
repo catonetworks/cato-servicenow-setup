@@ -1,1 +1,10 @@
-{"name":"cato-servicenow-setup","version":"0.1.0","private":true,"type":"commonjs","scripts":{"test":"node --test test/*.test.cjs","build":"python3 scripts/build-installer.py"}}
+{
+  "name": "cato-servicenow-setup",
+  "version": "0.2.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "build": "python3 scripts/build-installer.py"
+  }
+}

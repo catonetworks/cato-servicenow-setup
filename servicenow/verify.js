@@ -10,6 +10,10 @@
             require(descriptor.hasIndex(), 'MISSING_PHYSICAL_UNIQUE_' + table + '_' + column);
         });
     });
+    var incident = new GlideRecord('incident');
+    require(incident.isValidField('u_cato_sync_source_event') && incident.isValidField('u_cato_sync_created_event'), 'COMMIT_MARKERS_MISSING');
+    var audit = new GlideRecord('sys_dictionary'); audit.addQuery('name', 'incident'); audit.addNullQuery('element'); audit.query();
+    require(audit.next() && ['1', 'true'].indexOf(String(audit.getValue('audit'))) >= 0, 'INCIDENT_AUDIT_DISABLED');
     ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'api_key', 'receiver_user', 'state_profile', 'priority_profile', 'resolution_code'].forEach(function (key) {
         require(Boolean(gs.getProperty('cato_sync.' + key, '')), 'MISSING_CONFIG_' + key);
     });
@@ -27,7 +31,7 @@
         require(receiver, 'RECEIVER_ROLE_MISSING');
     }
     require(String(gs.getProperty('glide.buildname', '')) !== '', 'RELEASE_UNKNOWN');
-    gs.info(JSON.stringify({packageVersion: '0.1.0', release: gs.getProperty('glide.buildname', ''),
+    gs.info(JSON.stringify({packageVersion: '0.2.0', release: gs.getProperty('glide.buildname', ''),
         enabled: gs.getProperty('cato_sync.enabled', 'false'), failures: failures,
         remaining: ['Verify physical unique indexes', 'Run rollback/claim/journal/restart acceptance', 'Verify OAuth receiver succeeds and Table API is denied']}));
     if (failures.length) throw new Error('CATO_SYNC_VERIFICATION_FAILED');

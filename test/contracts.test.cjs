@@ -37,3 +37,55 @@ test('field conflicts never apply or advance the stream',()=>{
 test('every source and generated installer parses',()=>{
   for(const dir of ['servicenow','build']) for(const name of fs.readdirSync(dir).filter(x=>x.endsWith('.js'))) new vm.Script(fs.readFileSync(dir+'/'+name,'utf8'),{filename:name});
 });
+test('before rules abort source writes when durable capture fails',()=>{
+  for (const file of ['incident-rule.js','journal-rule.js']) {
+    let aborted=false;
+    const current={getUniqueValue:()=> 'a'.repeat(32),setAbortAction:value=>{aborted=value;}};
+    const context=vm.createContext({current,previous:{},gs:{error:()=>{},addErrorMessage:()=>{}},
+      CatoSyncHub:function(){this.captureIncident=this.captureJournal=()=>{throw Error('outbox unavailable');};}});
+    vm.runInContext(fs.readFileSync('servicenow/'+file,'utf8'),context);
+    assert.equal(aborted,true);
+  }
+});
+function evidenceRuntime(tables) {
+  return runtime({GlideRecord:function(table){
+    let data, conditions=[], results=[];
+    this.get=(key,value)=>{data=(tables[table]||[]).find(row=>value===undefined?row.sys_id===key:row[key]===value);return Boolean(data);};
+    this.getValue=key=>data?.[key];
+    this.addQuery=(key,value)=>conditions.push([key,value]); this.setLimit=()=>{};
+    this.query=()=>{results=(tables[table]||[]).filter(row=>conditions.every(([key,value])=>row[key]===value));};
+    this.next=()=>{data=results.shift();return Boolean(data);};
+  }});
+}
+const evidenceRow=(event,kind)=>({getValue:key=>({u_key:event.eventId,u_record:event.source.recordId,u_proof_kind:kind}[key])});
+test('incident commit evidence survives later updates but rejects orphan and legacy outbox rows',()=>{
+  const id='a'.repeat(32), event={eventId:'incident:earlier',kind:'PATCH',source:{recordId:id}};
+  const tables={incident:[{sys_id:id,u_cato_sync_source_event:'incident:latest'}],sys_audit:[]};
+  const hub=new (evidenceRuntime(tables).CatoSyncHub)();
+  assert.equal(hub.sourceCommitted(evidenceRow(event,'INCIDENT_OPERATION'),event),false);
+  tables.sys_audit.push({tablename:'incident',documentkey:id,fieldname:'u_cato_sync_source_event',newvalue:event.eventId});
+  assert.equal(hub.sourceCommitted(evidenceRow(event,'INCIDENT_OPERATION'),event),true);
+  assert.equal(hub.sourceCommitted(evidenceRow(event,''),event),false);
+  tables.incident=[];
+  assert.equal(hub.sourceCommitted(evidenceRow(event,'INCIDENT_OPERATION'),event),false);
+});
+test('journal proof requires exact committed identity and visibility, never matching text alone',()=>{
+  const event={eventId:'journal:one',kind:'JOURNAL',source:{recordId:'a'.repeat(32)},journal:{id:'one',body:'same',visibility:'PUBLIC'}};
+  const tables={sys_journal_field:[{sys_id:'two',element_id:event.source.recordId,element:'comments',value:'same'}]};
+  const hub=new (evidenceRuntime(tables).CatoSyncHub)();
+  assert.equal(hub.sourceCommitted(evidenceRow(event,'JOURNAL_ROW'),event),false);
+  tables.sys_journal_field[0].sys_id='one';
+  assert.equal(hub.sourceCommitted(evidenceRow(event,'JOURNAL_ROW'),event),true);
+  tables.sys_journal_field[0].element='work_notes';
+  assert.equal(hub.sourceCommitted(evidenceRow(event,'JOURNAL_ROW'),event),false);
+});
+test('unproven source capture never constructs an external request',()=>{
+  let first=true, reason;
+  const row={getUniqueValue:()=> 'outbox',getValue:()=>JSON.stringify({eventId:'orphan'})};
+  const context=runtime({GlideRecord:function(){this.addQuery=this.orderBy=this.setLimit=this.query=()=>{};
+    this.next=()=>{const result=first;first=false;return result;};this.getUniqueValue=row.getUniqueValue;},
+    sn_ws:{RESTMessageV2:function(){throw Error('Must not send uncommitted source');}}});
+  const hub=new context.CatoSyncHub();hub.enabled=()=>true;hub.recoverClaims=()=>{};hub.claim=()=>row;
+  hub.sourceCommitted=()=>false;hub.retry=(work,code)=>{reason=code;};
+  hub.dispatch();assert.equal(reason,'SOURCE_COMMIT_NOT_PROVEN');
+});
