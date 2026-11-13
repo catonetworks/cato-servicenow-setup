@@ -2,6 +2,17 @@ var CatoSyncHub = Class.create();
 CatoSyncHub.prototype = {
     initialize: function () {},
     property: function (name) { return String(gs.getProperty('cato_sync.' + name, '')); },
+    gatewayKey: function () {
+        var id = this.property('gateway_credential_id');
+        if (!/^[a-f0-9]{32}$/.test(id)) throw new Error('GATEWAY_CREDENTIAL_MISSING');
+        var row = new GlideRecord('api_key_credentials');
+        if (!row.get(id) || ['true', '1'].indexOf(String(row.getValue('active'))) < 0)
+            throw new Error('GATEWAY_CREDENTIAL_DISABLED');
+        var credential = new sn_cc.StandardCredentialsProvider().getCredentialByID(id);
+        var key = credential && credential.getAttribute('api_key');
+        if (!key) throw new Error('GATEWAY_CREDENTIAL_UNAVAILABLE');
+        return String(key);
+    },
     enabled: function () { return this.property('enabled') === 'true'; },
     integration: function () { return this.property('integration_id'); },
     eligible: function (incident) {
@@ -178,7 +189,7 @@ CatoSyncHub.prototype = {
                 if (!/^https:\/\/[a-zA-Z0-9.-]+\/graphql$/.test(url)) throw new Error('INVALID_GATEWAY_URL');
                 var message = new sn_ws.RESTMessageV2(); message.setEndpoint(url); message.setHttpMethod('POST'); message.setHttpTimeout(20000);
                 message.setRequestHeader('Content-Type', 'application/json');
-                message.setRequestHeader('x-api-key', new GlideEncrypter().decrypt(this.property('api_key')));
+                message.setRequestHeader('x-api-key', this.gatewayKey());
                 message.setRequestBody(JSON.stringify({query: 'mutation Accept($accountId: ID!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { id result state } } }',
                     variables: {accountId: this.property('account_id'), event: event}}));
                 var response = message.execute(); var status = response.getStatusCode();

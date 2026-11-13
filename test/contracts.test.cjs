@@ -102,3 +102,13 @@ test('journal application uses supported API and requires exact committed effect
   next=1;written=undefined;assert.throws(()=>hub.apply(body,incident),/LOCAL_EFFECT_MISMATCH/);
   assert.equal(next,1);assert.equal(updates,1);
 });
+test('gateway authentication reads only a configured active encrypted credential',()=>{
+  let active='1', exists=true, calls=0, configured='a'.repeat(32);
+  const context=runtime({gs:{getProperty:()=>configured},
+    GlideRecord:function(table){assert.equal(table,'api_key_credentials');this.get=()=>exists;this.getValue=()=>active;},
+    sn_cc:{StandardCredentialsProvider:function(){this.getCredentialByID=id=>{calls++;assert.equal(id,'a'.repeat(32));return {getAttribute:name=>{assert.equal(name,'api_key');return 'inert-test-key';}};};}}});
+  const hub=new context.CatoSyncHub();assert.equal(hub.gatewayKey(),'inert-test-key');assert.equal(calls,1);
+  active='0';assert.throws(()=>hub.gatewayKey(),/DISABLED/);assert.equal(calls,1);
+  active='1';exists=false;assert.throws(()=>hub.gatewayKey(),/DISABLED/);assert.equal(calls,1);
+  configured='';assert.throws(()=>hub.gatewayKey(),/MISSING/);assert.equal(calls,1);
+});

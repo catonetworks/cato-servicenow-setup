@@ -14,9 +14,11 @@
     require(incident.isValidField('u_cato_sync_source_event') && incident.isValidField('u_cato_sync_created_event'), 'COMMIT_MARKERS_MISSING');
     var audit = new GlideRecord('sys_dictionary'); audit.addQuery('name', 'incident'); audit.addNullQuery('element'); audit.query();
     require(audit.next() && ['1', 'true'].indexOf(String(audit.getValue('audit'))) >= 0, 'INCIDENT_AUDIT_DISABLED');
-    ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'api_key', 'receiver_user', 'state_profile', 'priority_profile', 'resolution_code'].forEach(function (key) {
+    ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'gateway_credential_id', 'receiver_user', 'state_profile', 'priority_profile', 'resolution_code'].forEach(function (key) {
         require(Boolean(gs.getProperty('cato_sync.' + key, '')), 'MISSING_CONFIG_' + key);
     });
+    try { require(Boolean(new CatoSyncHub().gatewayKey()), 'GATEWAY_CREDENTIAL_UNAVAILABLE'); }
+    catch (error) { failures.push('GATEWAY_CREDENTIAL_UNAVAILABLE'); }
     var user = new GlideRecord('sys_user');
     require(user.get(gs.getProperty('cato_sync.receiver_user', '')), 'RECEIVER_USER_MISSING');
     if (user.isValidRecord()) {

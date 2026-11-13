@@ -18,11 +18,13 @@ This preview is for an isolated synthetic routing group. Use a setup administrat
 | `instance_origin` | Exact HTTPS ServiceNow origin, no trailing slash |
 | `assignment_group` | Synthetic group sys_id |
 | `gateway_url` | Development tunnel HTTPS URL ending `/graphql` |
-| `api_key` | Encrypted **Password (2 Way Encrypted)** property containing the local gateway API key |
+| `gateway_credential_id` | sys_id of an active API Key Credential holding the local gateway key |
 | `receiver_user` | Dedicated runtime user's sys_id |
 | `state_profile` | JSON mapping NEW, IN_PROGRESS, ON_HOLD, RESOLVED and AWAITING_CALLER, AWAITING_VENDOR, AWAITING_CHANGE to this instance's actual state/hold_reason choice values |
 | `priority_profile` | JSON map from each priority 1–5 to verified synthetic `impact` and `urgency` inputs |
 | `resolution_code` | Valid synthetic resolution choice on this instance |
+
+Store the gateway key through the API Key Credentials form, with header `x-api-key`. Keep it private to the synthetic setup; do not distribute it to unrelated MID servers. Only the credential ID belongs in system properties. Runtime access uses [StandardCredentialsProvider](https://www.servicenow.com/docs/r/api-reference/server-api-reference/standard-credentials-provider-api.html); Brazil rejects the deprecated `GlideEncrypter` API. When upgrading from the initial preview, configure the credential, verify access, then clear the legacy `cato_sync.api_key` property. Never put the key into background scripts, update sets, or logs.
 
 Inspect `sys_choice` and the incident data policies to populate the profile. Do not assume numeric choice values across releases. Priority derivation rules must be verified with the synthetic profile: configure explicit synthetic impact/urgency inputs in `priority_profile` and verify all five outcomes. The receiver checks persisted field values after application and blocks the stream on an effect mismatch. Production urgency mapping is outside this package.
 
