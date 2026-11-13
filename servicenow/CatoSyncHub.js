@@ -37,7 +37,7 @@ CatoSyncHub.prototype = {
     },
     enqueue: function (event) {
         var payload = CatoSyncRules.canonical(event);
-        if (GlideStringUtil.base64Encode(payload).length > 327680) throw new Error('PAYLOAD_TOO_LARGE');
+        if (String(GlideStringUtil.base64Encode(payload)).length > 327680) throw new Error('PAYLOAD_TOO_LARGE');
         var row = new GlideRecord('u_cato_sync_outbox');
         if (row.get('u_key', event.eventId)) {
             if (String(row.getValue('u_payload')) !== payload) throw new Error('EVENT_ID_CONFLICT');
@@ -89,7 +89,7 @@ CatoSyncHub.prototype = {
     receive: function (body) {
         CatoSyncRules.receiver(body, this.integration());
         if (!this.enabled()) throw new Error('INTEGRATION_PAUSED');
-        if (GlideStringUtil.base64Encode(JSON.stringify(body)).length > 349528) throw new Error('PAYLOAD_TOO_LARGE');
+        if (String(GlideStringUtil.base64Encode(JSON.stringify(body))).length > 349528) throw new Error('PAYLOAD_TOO_LARGE');
         var state = new GlideRecord('u_cato_sync_state');
         if (!state.get('u_key', body.recordId)) throw new Error('RECORD_NOT_OWNED');
         var payload = CatoSyncRules.canonical(body);

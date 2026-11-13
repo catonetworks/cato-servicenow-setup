@@ -4,7 +4,11 @@
     ['u_cato_sync_state', 'u_cato_sync_outbox', 'u_cato_sync_inbox'].forEach(function (table) {
         var row = new GlideRecord(table); require(row.isValid(), 'MISSING_TABLE_' + table);
         var dict = new GlideRecord('sys_dictionary'); dict.addQuery('name', table); dict.addQuery('element', 'u_key'); dict.query();
-        require(dict.next() && String(dict.getValue('unique')) === '1', 'MISSING_UNIQUE_KEY_' + table);
+        require(dict.next() && ['1', 'true'].indexOf(String(dict.getValue('unique'))) >= 0, 'MISSING_UNIQUE_KEY_' + table);
+        ['u_key'].concat(table === 'u_cato_sync_inbox' ? ['u_stream_key'] : []).forEach(function (column) {
+            var descriptor = new GlideIndexDescriptor(table, '', GlideStringUtil.split(column)); descriptor.setUnique(true);
+            require(descriptor.hasIndex(), 'MISSING_PHYSICAL_UNIQUE_' + table + '_' + column);
+        });
     });
     ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'api_key', 'receiver_user', 'state_profile', 'priority_profile', 'resolution_code'].forEach(function (key) {
         require(Boolean(gs.getProperty('cato_sync.' + key, '')), 'MISSING_CONFIG_' + key);

@@ -43,6 +43,14 @@
             upsert('sys_security_acl_role', {sys_security_acl: acl, sys_user_role: String(adminRole.getUniqueValue())}, {});
         });
     });
+    tables.forEach(function (table) {
+        ['u_key'].concat(table === 'u_cato_sync_inbox' ? ['u_stream_key'] : []).forEach(function (column) {
+            if (!gs.ensureIndex(table, column)) throw new Error('Unique index creation failed: ' + table + '.' + column);
+            var descriptor = new GlideIndexDescriptor(table, '', GlideStringUtil.split(column));
+            descriptor.setUnique(true);
+            if (!descriptor.hasIndex()) throw new Error('Physical unique index missing: ' + table + '.' + column);
+        });
+    });
     field('incident', 'u_cato_sync_last_delivery', 'string', 36);
     field('sys_journal_field', 'u_cato_sync_effect_key', 'string', 36);
     ['incident.u_cato_sync_last_delivery', 'sys_journal_field.u_cato_sync_effect_key'].forEach(function (name) {
