@@ -58,3 +58,5 @@ Version 0.2 does not backfill commit proof onto legacy outbox rows: their source
 Only sandbox data belongs in this preview. The local gateway uses a synthetic identity; production CMA authentication is not provided here. The dedicated receiver role is not a table-access role. Script Includes are server-only. Package tables contain durable payloads and are restricted to administrators. Rotate the gateway key and OAuth secrets through the secret stores, not source files or update sets. Do not enable outbound full-body HTTP logging.
 
 References: [ServiceNow Scripted REST security](https://www.servicenow.com/docs/r/api-reference/rest-api-explorer/c_CustomWebServices.html), [GlideRecord API](https://www.servicenow.com/docs/r/xanadu/api-reference/server-api-reference/c_GlideRecordAPI.html).
+
+The reviewed local GraphQL contract wraps ingestion as `ingestEvent { event { id result state } }`. Upgrade the matching local gateway and this installer together while capture is paused; REST source envelopes and durable source identities are unchanged.

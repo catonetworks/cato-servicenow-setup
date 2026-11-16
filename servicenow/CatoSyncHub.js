@@ -190,12 +190,12 @@ CatoSyncHub.prototype = {
                 var message = new sn_ws.RESTMessageV2(); message.setEndpoint(url); message.setHttpMethod('POST'); message.setHttpTimeout(20000);
                 message.setRequestHeader('Content-Type', 'application/json');
                 message.setRequestHeader('x-api-key', this.gatewayKey());
-                message.setRequestBody(JSON.stringify({query: 'mutation Accept($accountId: ID!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { id result state } } }',
+                message.setRequestBody(JSON.stringify({query: 'mutation Accept($accountId: ID!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { event { id result state } } } }',
                     variables: {accountId: this.property('account_id'), event: event}}));
                 var response = message.execute(); var status = response.getStatusCode();
                 if (status < 200 || status >= 300) { this.retry(row, 'HUB_HTTP_' + status, Number(response.getHeader('Retry-After')) || 0); continue; }
                 var result = JSON.parse(response.getBody());
-                var accepted = result.data && result.data.syncHub && result.data.syncHub.ingestEvent;
+                var accepted = result.data && result.data.syncHub && result.data.syncHub.ingestEvent && result.data.syncHub.ingestEvent.event;
                 if (!accepted || ['ACCEPTED', 'DUPLICATE'].indexOf(accepted.result) < 0) { this.retry(row, 'HUB_NOT_ACCEPTED', 0); continue; }
                 this.finish(row, {u_state: 'ACCEPTED', u_error: ''});
             } catch (error) { this.retry(row, 'DISPATCH_FAILED', 0); }
