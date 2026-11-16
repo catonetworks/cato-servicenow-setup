@@ -112,3 +112,27 @@ test('gateway authentication reads only a configured active encrypted credential
   active='1';exists=false;assert.throws(()=>hub.gatewayKey(),/DISABLED/);assert.equal(calls,1);
   configured='';assert.throws(()=>hub.gatewayKey(),/MISSING/);assert.equal(calls,1);
 });
+test('capture dispatch translates GraphQL enum without rewriting durable source and requires payload evidence',()=>{
+  for (const accepted of [true,false]) {
+    let first=true, sent, finished=false, retry;
+    const original=JSON.stringify({eventId:'captured-event',source:{table:'incident',recordId:'a'.repeat(32)}});
+    const row={getUniqueValue:()=> 'outbox',getValue:()=>original};
+    const context=runtime({GlideRecord:function(){this.addQuery=this.orderBy=this.setLimit=this.query=()=>{};
+      this.next=()=>{const value=first;first=false;return value;};this.getUniqueValue=row.getUniqueValue;},
+      sn_ws:{RESTMessageV2:function(){
+        this.setEndpoint=this.setHttpMethod=this.setHttpTimeout=this.setRequestHeader=()=>{};
+        this.setRequestBody=body=>{sent=JSON.parse(body);};
+        this.execute=()=>({getStatusCode:()=>200,getBody:()=>JSON.stringify({data:{syncHub:{ingestEvent:accepted
+          ?{event:{id:'durable-id',result:'ACCEPTED',state:'PENDING'}}:{result:'ACCEPTED'}}}})});
+      }}});
+    const hub=new context.CatoSyncHub();hub.enabled=()=>true;hub.recoverClaims=()=>{};hub.claim=()=>row;
+    hub.sourceCommitted=(work,event)=>{assert.equal(event.source.table,'incident');return true;};
+    hub.property=name=>name==='gateway_url'?'https://fixture.example/graphql':'test';hub.gatewayKey=()=> 'inert-fixture-key';
+    hub.finish=()=>{finished=true;};hub.retry=(work,reason)=>{retry=reason;};
+    hub.dispatch();
+    assert.equal(sent.variables.event.source.table,'INCIDENT');
+    assert.equal(JSON.parse(row.getValue()).source.table,'incident');
+    assert.equal(finished,accepted);
+    if(!accepted)assert.equal(retry,'HUB_NOT_ACCEPTED');
+  }
+});

@@ -60,3 +60,5 @@ Only sandbox data belongs in this preview. The local gateway uses a synthetic id
 References: [ServiceNow Scripted REST security](https://www.servicenow.com/docs/r/api-reference/rest-api-explorer/c_CustomWebServices.html), [GlideRecord API](https://www.servicenow.com/docs/r/xanadu/api-reference/server-api-reference/c_GlideRecordAPI.html).
 
 The reviewed local GraphQL contract wraps ingestion as `ingestEvent { event { id result state } }`. Upgrade the matching local gateway and this installer together while capture is paused; REST source envelopes and durable source identities are unchanged.
+
+The sender converts its captured REST table `incident` to GraphQL `INCIDENT` after commit verification. Stored outbox payloads retain their original identities/content.

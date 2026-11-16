@@ -187,6 +187,8 @@ CatoSyncHub.prototype = {
                 if (!this.sourceCommitted(row, event)) { this.retry(row, 'SOURCE_COMMIT_NOT_PROVEN', 5); continue; }
                 var url = this.property('gateway_url');
                 if (!/^https:\/\/[a-zA-Z0-9.-]+\/graphql$/.test(url)) throw new Error('INVALID_GATEWAY_URL');
+                if (event.source.table !== 'incident') throw new Error('UNSUPPORTED_SOURCE_TABLE');
+                event.source.table = 'INCIDENT';
                 var message = new sn_ws.RESTMessageV2(); message.setEndpoint(url); message.setHttpMethod('POST'); message.setHttpTimeout(20000);
                 message.setRequestHeader('Content-Type', 'application/json');
                 message.setRequestHeader('x-api-key', this.gatewayKey());
