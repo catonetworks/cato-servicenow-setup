@@ -1,6 +1,6 @@
 # Cato ServiceNow setup (sandbox preview)
 
-Reference capture and receiver scripts for synthetic ServiceNow incidents synchronized through Sync Hub. **Draft: licensing unresolved.** This repository does not yet grant an open-source license. Do not distribute it as a licensed release.
+Reference capture and receiver scripts for synthetic ServiceNow incidents synchronized through Sync Hub. Licensed under the [Apache License, Version 2.0](LICENSE). This remains a sandbox preview.
 
 **Enable only for the isolated synthetic profile after its acceptance checks.** Version 0.2 moves capture to before rules that abort source writes on outbox failure. Dispatch requires an exact persisted journal row or incident-operation marker/audit entry, so an orphan outbox row cannot prove a source commit. Native source-abort, commit-evidence, restricted OAuth, ordered application, and journal recovery checks passed on the Brazil sandbox. The full vendor round trip and priority-5 fixture remain pending. See the [native acceptance record](docs/native-acceptance.md).
 

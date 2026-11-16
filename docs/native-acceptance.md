@@ -46,4 +46,4 @@ Capture and receiver application are paused with `cato_sync.enabled=false`; the 
 
 Automatic delivery passed on the fresh fixture above. Provider-side rate-limit/lost-response injection remains unclaimed. Thirteen local Node tests pass; these are separate from the native evidence above.
 
-Licensing remains unresolved. Keep the installer PR draft regardless of test results.
+Apache-2.0 was selected on 16 November 2026; see [LICENSE](../LICENSE). The PR remains draft while the remaining release acceptance checks are tracked.

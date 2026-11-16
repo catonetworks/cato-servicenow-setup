@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// License: https://www.apache.org/licenses/LICENSE-2.0
 (function install() {
     if (!gs.hasRole('admin') || !gs.hasRole('security_admin')) throw new Error('Elevated setup administrator required');
     var sources = /* SOURCES */;
