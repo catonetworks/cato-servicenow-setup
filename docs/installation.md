@@ -1,14 +1,22 @@
 # Installation and release verification
 
-This preview is for an isolated synthetic routing group. Use a setup administrator separate from the runtime OAuth user. Record the ServiceNow release/build with the test evidence; the metadata fields were inspected on Brazil, but metadata inspection alone is not installation acceptance.
+## Build and publish the Global application
 
-1. Create a local update set for the installation and elevate the setup administrator to `security_admin`.
-2. Build and review `build/install.js`. Execute it in **global** scope using Scripts - Background with rollback recording enabled. The script upserts package-owned metadata and always sets `cato_sync.enabled=false` first. Unsupported metadata fields fail explicitly. Do not enable a partially installed package.
-3. Verify physical unique indexes on `u_key` in all three package tables and `u_stream_key` in the inbox. Dictionary uniqueness is requested by the installer; inspect the resulting database indexes before concurrent use.
-4. Create a dedicated web-service-only user with only `cato_sync.receiver` (and the platform's required internal role if applicable). Do not grant `itil`, `admin`, table roles, or broad REST roles. Configure an inbound OAuth application and authorize that user. Keep its refresh token and client secret in the local stack's 1Password entry. The receiver also checks the configured user ID, Bearer authentication, integration ID, and incident ownership.
-5. The Scripted REST endpoint is `/api/global/cato_sync/v1/receive`. Platform authentication is required; the resource script enforces the dedicated identity and role. General record-table ACLs remain admin-only. Verify the runtime identity cannot read or write `incident` or the package tables through Table API. Do not weaken existing ACLs to make this test pass.
-6. Create a dedicated synthetic assignment group and use incident titles starting `[SYNC-HUB]`. Configure the properties below. Nothing else is eligible for capture or application.
-7. Run `servicenow/verify.js` as an administrator and complete the acceptance checks before setting `cato_sync.enabled=true`.
+1. On an authorized publisher instance, create the `Cato Sync Hub` Global application in classic ServiceNow Studio. Use the publisher's existing Global application and Application Repository entitlements. Select the app in the application picker and create a dedicated update set for rollback recording.
+2. Use System Definition > Tables to create `u_cato_sync_state`, `u_cato_sync_outbox` and `u_cato_sync_inbox` under the application. Leave Extends Table blank. Select **Create access controls**, choose `admin` as the user role and clear **Allow access to this table via web services**. Verify these settings before adding fields or writing runtime data.
+3. Run `npm run build` and review `build/install.js`. Run it in Scripts - Background as `admin` with the Cato Sync Hub application selected and rollback recording enabled. The bootstrap verifies the generated CRUD ACLs and app ownership through read-only queries. It adds the table columns, rules, Script Includes, receiver and jobs to the app. Confirm each artifact appears in the application's files before publication. Confirm the private tables' ACLs and role mappings are included and the enabled property is `false`.
+4. Check the physical unique indexes for `u_key` on all three tables and `u_stream_key` on the inbox. Use the native table index interface if the physical indexes are missing. Record the source commit, the generated script checksum, and the app sys_id and version, then publish the Global app to the private Application Repository and entitle the target instance.
+
+[Create a table](https://www.servicenow.com/docs/r/zurich/platform-administration/table-administration-and-data-management/t_CreateATable.html) · [Publish through classic Studio](https://www.servicenow.com/docs/r/zurich/application-development/servicenow-studio-classic/working-with-the-app-repo-in-servicenow-studio.html)
+
+## Install and configure the target
+
+1. Install the exact published version using **My Company Applications** as an ordinary `admin`. With an authenticated ServiceNow CI/CD CLI alias and a published, entitled version, run `now-sdk cicd install --auth catorefarch --app-sys-id <app-id> --app-version <version>` and verify the final installation result. Record the app sys_id, version, instance build, actor, and install history. Keep the bootstrap execution on the publisher.
+2. Confirm the installed app is disabled. Inspect the generated role mappings, physical indexes and table web-services settings on the target. Check an ordinary incident agent cannot read or modify inbox, outbox or state rows. Verify that scripts and rules are attached to the installed app, with the incident rules and journal rule in Global scope.
+3. Create a dedicated web-service-only user with only `cato_sync.receiver` and the platform's required internal role if applicable. Scope its OAuth access to the Scripted REST API at `/api/global/cato_sync/v1/receive`. The script requires the configured user ID, receiver role, Bearer authentication, integration ID and incident ownership. Verify the receiver can authenticate to this endpoint and gets denied on the Incident and package Table APIs.
+4. Configure the properties below and run `servicenow/verify.js`. Leave `cato_sync.enabled=false` until the installation and access checks pass. Enable only for the isolated synthetic profile during its acceptance window, then disable it again.
+
+[Install an app from the Application Repository](https://www.servicenow.com/docs/r/zurich/application-development/application-repository-self-hosted/install-app-from-repo.html) · [CI/CD API](https://www.servicenow.com/docs/r/zurich/api-reference/rest-apis/cicd-api.html)
 
 | Property prefix `cato_sync.` | Value |
 |---|---|
@@ -17,6 +25,8 @@ This preview is for an isolated synthetic routing group. Use a setup administrat
 | `account_id` | Synthetic account bound by the local gateway |
 | `instance_origin` | Exact HTTPS ServiceNow origin, no trailing slash |
 | `assignment_group` | Synthetic group sys_id |
+| `capture_mode` | `group` for group-based routing. Existing installs without this setting use `group-and-title`. |
+| `title_prefix` | Prefix for `group-and-title` mode. The default is `[SYNC-HUB]`. |
 | `gateway_url` | Development tunnel HTTPS URL ending `/graphql` |
 | `gateway_credential_id` | sys_id of an active API Key Credential holding the local gateway key |
 | `receiver_user` | Dedicated runtime user's sys_id |
@@ -33,12 +43,14 @@ Inspect `sys_choice` and the incident data policies to populate the profile. Do 
 Use synthetic records only and retain sys_ids plus sanitized outcomes. Never paste tokens or payloads containing real customer data into review evidence.
 
 - Confirm all metadata exists and capture remains disabled after install. Confirm anonymous, Basic-auth, wrong OAuth identity, wrong role, and forged integration requests fail; dedicated OAuth requests succeed.
-- Create a new eligible incident in NEW, then immediately update it and add two identical-text public comments and two work notes. Verify CREATE precedes updates and all four exact journal sys_ids produce separate events. Ineligible group/title records produce no events.
-- Force outbox insertion failure and verify the before rule aborts the incident/journal write on the actual release. Separately abort the source after capture and verify that an orphan outbox row fails `sourceCommitted` and never reaches the network. Update an incident rapidly and verify earlier operation markers remain provable through `sys_audit`. Incident auditing and marker-field retention are required; missing evidence retains the outbox for bounded retry and then marks it FAILED.
+- Create a new eligible incident in NEW, then immediately update it and add two identical-text public comments and two work notes. Verify CREATE precedes updates and all four exact journal sys_ids produce separate events. Records from other groups produce no events. In `group-and-title` mode, also verify that a title outside the configured prefix produces no events.
+- Force the before-rule outbox insert to fail and verify the source incident or journal write aborts. Abort a source after successful capture and verify the retained outbox stays unconfirmed and dispatch sends nothing. Confirm the matching synchronous after rule finalizes the exact outbox receipt for each rapid edit. Interrupt after the source commits but before the receipt persists and verify that dispatch holds the entry. This release has no automated reconstruction of that receipt from native audits.
 - Deliver the same inbox ID/content concurrently: one row and consistent acknowledgments. Different content or a reused sequence conflicts. Payloads over 256 KiB fail.
 - Deliver sequence 2 before 1: no application until 1 is applied. Change a human-owned field between receipt and application: FIELD_CONFLICT, no overwrite. Verify other incidents continue.
-- Apply a public comment, stop the processor between incident update and ledger advance, then restart. Confirm the exact operation marker suppresses the second write and the ledger advances once. Repeat for LINK, retaining the ticket reference.
-- Verify session marker propagation into `sys_journal_field.u_cato_sync_effect_key` and that normal human journal rows have no marker. Capture runs before the source write, after the marker rule, and must not capture marked receiver echoes. Inspect BR execution order and abort behavior on the installed release. Source writers that disable business rules are not supported capture paths.
+- Apply a public comment and interrupt the processor after the native journal commits and before the sequence advances. Restart and verify the exact journal `sys_id` recorded in the inbox prevents a second append. Send a different operation with identical text and verify it gets a separate journal ID. Verify normal incident-agent comments are still captured and inbound ones do not echo.
+- Force the journal-ID ledger write to fail and verify on the target that the native journal insert aborts. Expire the claim before the callback and verify a stale worker cannot insert an untracked comment. Interrupt after reservation and before native write, and verify later deliveries on that incident wait behind the `UNCERTAIN` operation after retry exhaustion.
+- For inbound PATCH recovery, verify the native audit entries carry the exact operation reason and scheduled worker username, including inherited title/priority/state fields and hold reason. Interrupt after native update and before the sequence advances. Verify retry proves the recorded effects without applying them again, even if a later human edit changed the current value. Exercise overlapping human edits during application and verify the conflict behavior.
+- Verify LINK replay updates only the private ledger and persists the Zendesk ticket ID once.
 - Verify priority 1–5, native hold reasons, and resolution defaults survive all local business rules. Verify no closure or cancellation is synthesized.
 - Simulate network loss after hub commit. Outbox retry must reuse byte-equivalent content/event identity. Retry eight times with backoff; preserve FAILED records for diagnosis.
 - Check worker claim fencing, lease recovery, unique indexes and local crash recovery with concurrent scheduled executions. No payloads or credentials in logs; only bounded error codes and record IDs.
@@ -47,15 +59,15 @@ Until these checks pass, the installer PR stays draft. The package does not clai
 
 ## Upgrade and recovery
 
-Set `enabled=false`; wait for active jobs to finish and export the update set and all package tables through an administrator. Apply the newly generated installer and rerun verification. Installation updates named scripts and metadata in place and never deletes inbox/outbox/state rows or resets sequence numbers. Existing event payloads and delivery IDs remain immutable. Roll back package metadata using the recorded update set/rollback context if required; preserve durable records. Do not delete and recreate an integration while accepted work exists.
+Set `enabled=false`, wait for active jobs to finish, then take an app metadata and durable table backup before upgrading. Install the matching published version and rerun verification. Keep the existing inbox/outbox/state records and sequence numbers. Use the recorded app version and rollback context to revert metadata if needed. Preserve accepted work and delivery identities.
 
-FAILED inbox rows block later sequence numbers for that incident. UNCERTAIN effects require operator investigation; this iteration has no repair/replay API. Do not clear markers or manually reset sequences to force progress.
+FAILED and UNCERTAIN inbox rows block later sequence numbers on that incident. A reservation survives worker restarts. Retry can confirm an exact effect from the ledger or audit. A reserved operation with missing evidence eventually reaches UNCERTAIN and requires investigation. There is no repair or replay API in this release.
 
-Version 0.2 does not backfill commit proof onto legacy outbox rows: their source commit was not established by the former after-rule implementation. They remain retained and cannot dispatch without proof. Use a fresh synthetic incident/profile for the new acceptance run; do not reset or reinterpret accepted legacy work. Event IDs are generated per source attempt and are frozen in the outbox for network retries. An aborted source attempt followed by a new edit receives a new operation ID.
+The 0.3 bootstrap is for a clean installation. It stops when it sees the 0.2 marker schema. Moving active 0.2 integrations requires a separate migration because their durable records and proof rules differ. Preserve the old ledger and source evidence during migration planning.
 
 ## Security boundaries
 
-Only sandbox data belongs in this preview. The local gateway uses a synthetic identity; production CMA authentication is not provided here. The dedicated receiver role is not a table-access role. Script Includes are server-only. Package tables contain durable payloads and are restricted to administrators. Rotate the gateway key and OAuth secrets through the secret stores, not source files or update sets. Do not enable outbound full-body HTTP logging.
+Use synthetic data with the local gateway and keep managed-environment verification as the production release gate. The dedicated receiver role is not a table-access role. Script Includes are server-only. Package tables contain durable payloads and are restricted to administrators. Rotate the gateway key and OAuth secrets through the secret stores, not source files or update sets. Do not enable outbound full-body HTTP logging.
 
 References: [ServiceNow Scripted REST security](https://www.servicenow.com/docs/r/api-reference/rest-api-explorer/c_CustomWebServices.html), [GlideRecord API](https://www.servicenow.com/docs/r/xanadu/api-reference/server-api-reference/c_GlideRecordAPI.html).
 

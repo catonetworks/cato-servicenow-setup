@@ -1,18 +1,18 @@
-# Cato ServiceNow setup (sandbox preview)
+# Cato ServiceNow setup
 
-Reference capture and receiver scripts for synthetic ServiceNow incidents synchronized through Sync Hub. Licensed under the [Apache License, Version 2.0](LICENSE). This remains a sandbox preview.
+Capture and receiver scripts for ServiceNow incidents synchronized through Sync Hub. Licensed under the [Apache License, Version 2.0](LICENSE). Installation starts disabled. Validate the target ServiceNow release and routing group before rollout.
 
-**Enable only for the isolated synthetic profile after its acceptance checks.** Version 0.2 moves capture to before rules that abort source writes on outbox failure. Dispatch requires an exact persisted journal row or incident-operation marker/audit entry, so an orphan outbox row cannot prove a source commit. Native source-abort, commit-evidence, restricted OAuth, ordered application, and journal recovery checks passed on the Brazil sandbox. The full vendor round trip and priority-5 fixture remain pending. See the [native acceptance record](docs/native-acceptance.md).
+Version 0.3 targets an ordinary-admin install of a Global application on Zurich. The publisher uses ServiceNow's table creation controls to generate admin-only table ACLs. The runtime keeps source receipts, claims and journal IDs in the three protected application tables. The package adds no fields or ACLs to Incident or Journal Entry.
 
-The preview records exact incident revisions and journal rows in an outbox. The customer-owned receiver accepts version-1 deliveries into an inbox before returning HTTP 202; a scheduled processor applies them in sequence. A receiver acknowledgment proves inbox storage, not completed incident application.
+The ServiceNow receiver accepts version-1 deliveries into an inbox before returning HTTP 202. A scheduled processor applies them in sequence. The acknowledgment covers inbox storage. Application is recorded separately.
 
 ```sh
-python3 scripts/build-installer.py
+npm run build
 npm test
 ```
 
-Review `build/install.js`, then follow [installation](docs/installation.md). Generated files contain no credentials. Capture is disabled after every installation or upgrade. No external dependency is needed to build or test.
+[Build the Global application and install it from the Application Repository](docs/installation.md). `build/install.js` is a publisher bootstrap. The application is disabled at first install. Use a dedicated synthetic profile for acceptance. See the [prior native acceptance record](docs/native-acceptance.md) for version 0.2 results.
 
 Supported: creation, title, priority, working/hold/resolved states, public comments, outbound private work notes. Description is copied only at creation. Attachments, closure/cancellation, private Zendesk notes, reconciliation, replay APIs, and production deployment are excluded.
 
-Local JavaScript tests cover validation, stable canonical content, ordering, conflict rejection, and recovery after an incident LINK marker commits. They do not establish ServiceNow transaction, business-rule, ACL, OAuth, journal, or physical-index behavior. These require the release acceptance checks in the installation guide.
+Local JavaScript tests cover envelope validation, sequence advancement, exact journal recovery, stale-claim rejection, and PATCH audit matching. The installation guide defines the native release checks.
