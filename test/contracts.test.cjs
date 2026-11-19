@@ -78,18 +78,18 @@ test('before rules abort source writes when durable capture fails',()=>{
   for (const file of ['incident-rule.js','journal-rule.js']) {
     let aborted=false;
     const current={getUniqueValue:()=> 'a'.repeat(32),setAbortAction:value=>{aborted=value;}};
-    const context=vm.createContext({current,previous:{},g_scratchpad:{},gs:{error:()=>{},addErrorMessage:()=>{}},
+    const context=vm.createContext({current,previous:{},gs:{error:()=>{},addErrorMessage:()=>{}},
       CatoSyncHub:function(){this.captureIncident=this.captureJournal=()=>{throw Error('outbox unavailable');};}});
     vm.runInContext(fs.readFileSync('servicenow/'+file,'utf8'),context);
     assert.equal(aborted,true);
   }
 });
-test('incident rules hand off the exact before-rule attempt and consume it once', () => {
-  const current = {};
+test('incident rules consume the exact receipt once without a display scratchpad', () => {
+  const current = {getUniqueValue: () => 'a'.repeat(32)};
+  const other = {getUniqueValue: () => 'b'.repeat(32)};
   const previous = {};
-  const scratch = {};
   const confirmed = [];
-  const context = vm.createContext({current, previous, g_scratchpad: scratch, CatoSyncHub: function() {
+  const context = vm.createContext({current, previous, CatoSyncHub: function() {
     this.captureIncident = (record, prior) => {
       assert.equal(record, current);
       assert.equal(prior, previous);
@@ -102,10 +102,12 @@ test('incident rules hand off the exact before-rule attempt and consume it once'
   }});
   const runRule = file => vm.runInContext(fs.readFileSync('servicenow/' + file, 'utf8'), context);
   runRule('incident-rule.js');
+  context.current = other;
+  runRule('incident-confirm-rule.js');
+  context.current = current;
   runRule('incident-confirm-rule.js');
   runRule('incident-confirm-rule.js');
   assert.deepEqual(confirmed, ['attempt']);
-  assert.deepEqual(scratch, {});
 });
 function evidenceRuntime(tables, extra = {}) {
   return runtime({...extra, GlideRecord: function(table) {
