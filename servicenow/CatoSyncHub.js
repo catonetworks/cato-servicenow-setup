@@ -13,6 +13,14 @@ CatoSyncHub.prototype = {
         if (!key) throw new Error('GATEWAY_CREDENTIAL_UNAVAILABLE');
         return String(key);
     },
+    graphqlRequest: function (event) {
+        var account = this.property('account_id');
+        if (!/^[1-9][0-9]{0,18}$/.test(account) || (account.length === 19 && account > '9223372036854775807'))
+            throw new Error('INVALID_ACCOUNT_ID');
+        var query = 'mutation Accept($accountId: Int!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { event { id result state } } } }';
+        // Emit the validated integer token directly; Number would round large account IDs.
+        return '{"query":' + JSON.stringify(query) + ',"variables":{"accountId":' + account + ',"event":' + JSON.stringify(event) + '}}';
+    },
     enabled: function () { return this.property('enabled') === 'true'; },
     integration: function () { return this.property('integration_id'); },
     eligible: function (incident) {
@@ -278,8 +286,7 @@ CatoSyncHub.prototype = {
                 var message = new sn_ws.RESTMessageV2(); message.setEndpoint(url); message.setHttpMethod('POST'); message.setHttpTimeout(20000);
                 message.setRequestHeader('Content-Type', 'application/json');
                 message.setRequestHeader('x-api-key', this.gatewayKey());
-                message.setRequestBody(JSON.stringify({query: 'mutation Accept($accountId: ID!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { event { id result state } } } }',
-                    variables: {accountId: this.property('account_id'), event: event}}));
+                message.setRequestBody(this.graphqlRequest(event));
                 var response = message.execute(); var status = response.getStatusCode();
                 if (status < 200 || status >= 300) { this.retry(row, 'HUB_HTTP_' + status, Number(response.getHeader('Retry-After')) || 0); continue; }
                 var result = JSON.parse(response.getBody());

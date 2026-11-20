@@ -22,7 +22,7 @@
 |---|---|
 | `enabled` | `false` until verification is complete |
 | `integration_id` | Same UUID as the local hub integration |
-| `account_id` | Synthetic account bound by the local gateway |
+| `account_id` | Positive signed int64 account bound by the gateway, entered as canonical decimal text |
 | `instance_origin` | Exact HTTPS ServiceNow origin, no trailing slash |
 | `assignment_group` | Synthetic group sys_id |
 | `capture_mode` | `group` for group-based routing. Existing installs without this setting use `group-and-title`. |
@@ -83,3 +83,11 @@ must differ from NEW, IN_PROGRESS, ON_HOLD and RESOLVED. Missing or ambiguous co
 fails with STATE_PROFILE_REQUIRED. Preserve existing close code/notes; configured resolution
 defaults fill them only when absent. Retain earlier failed deliveries for controlled recovery;
 this upgrade does not reset or replay accepted work.
+
+### Upgrade to 0.3.3
+
+Upgrade the sender and matching gateway together while capture and dispatch are paused. The
+GraphQL account argument is `Int!`, matching CMA. Configure `account_id` as a positive signed
+64-bit decimal; the sender emits an exact JSON integer without JavaScript Number conversion.
+The gateway rejects string account variables, fractions and overflow. This changes only the
+GraphQL request envelope; persisted outbox payloads and source/delivery identities are unchanged.

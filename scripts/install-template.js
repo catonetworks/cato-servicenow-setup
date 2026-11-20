@@ -107,6 +107,6 @@
         upsert('sysauto_script', {name: 'Cato Sync ' + method + ' v1'}, {active: true, run_type: 'periodically',
             run_period: '1970-01-01 00:00:05', script: 'new CatoSyncHub().' + method + '();'});
     });
-    upsert('sys_properties', {name: 'cato_sync.package_version'}, {value: '0.3.2', type: 'string'});
-    gs.info('Cato Sync 0.3.2 installed DISABLED. Verify source abort and commit evidence before enabling.');
+    upsert('sys_properties', {name: 'cato_sync.package_version'}, {value: '0.3.3', type: 'string'});
+    gs.info('Cato Sync 0.3.3 installed DISABLED. Verify source abort and commit evidence before enabling.');
 })();

@@ -41,7 +41,7 @@
         require(receiver, 'RECEIVER_ROLE_MISSING');
     }
     require(String(gs.getProperty('glide.buildname', '')) !== '', 'RELEASE_UNKNOWN');
-    gs.info(JSON.stringify({packageVersion: '0.3.2', release: gs.getProperty('glide.buildname', ''),
+    gs.info(JSON.stringify({packageVersion: '0.3.3', release: gs.getProperty('glide.buildname', ''),
         enabled: gs.getProperty('cato_sync.enabled', 'false'), failures: failures,
         remaining: ['Verify physical unique indexes', 'Run rollback/claim/journal/restart acceptance', 'Verify OAuth receiver succeeds and Table API is denied']}));
     if (failures.length) throw new Error('CATO_SYNC_VERIFICATION_FAILED');
