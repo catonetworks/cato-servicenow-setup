@@ -11,7 +11,7 @@ const base = {schemaVersion:1, integrationId:'integration', deliveryId:'11111111
 test('receiver validates identity, typed fields, scope, ordering, and forbidden visibility', () => {
   const r=runtime().CatoSyncRules;
   assert.equal(r.receiver(base,'integration'),base);
-  for (const changed of [{integrationId:'forged'}, {sequence:0}, {deliveryId:'-'.repeat(36)}, {fields:{priority:'4'}}, {expected:{priority:null}}, {fields:{state:'CLOSED'}}, {extra:'forged'}, {kind:'JOURNAL',fields:undefined,expected:undefined,journal:{id:'a',body:'private',visibility:'PRIVATE'}}])
+  for (const changed of [{integrationId:'forged'}, {sequence:0}, {deliveryId:'-'.repeat(36)}, {fields:{priority:'4'}}, {expected:{priority:null}}, {fields:{state:'CANCELLED'}}, {extra:'forged'}, {kind:'JOURNAL',fields:undefined,expected:undefined,journal:{id:'a',body:'private',visibility:'PRIVATE'}}])
     assert.throws(()=>r.receiver({...base,...changed},'integration'));
   assert.equal(r.transition(1,1),'READY'); assert.equal(r.transition(2,1),'WAIT'); assert.equal(r.transition(1,2),'DUPLICATE');
 });
@@ -262,4 +262,54 @@ test('capture dispatch translates GraphQL enum without rewriting durable source 
     assert.equal(finished,accepted);
     if(!accepted)assert.equal(retry,'HUB_NOT_ACCEPTED');
   }
+});
+test('Zendesk closure validates and preserves native resolution evidence', () => {
+  const profile = {NEW:1, IN_PROGRESS:2, ON_HOLD:3, RESOLVED:6, CLOSED:7};
+  const properties = {'cato_sync.state_profile':JSON.stringify(profile), 'cato_sync.resolution_code':'configured-resolution'};
+  const hub = new (runtime({gs:{getProperty:name=>properties[name]}}).CatoSyncHub)();
+  const body = {...base, fields:{state:'CLOSED'}, expected:{state:'RESOLVED'}};
+  assert.equal(runtime().CatoSyncRules.receiver(body,'integration'),body);
+  const values = {state:6, priority:3, short_description:'synthetic', close_code:'human-code', close_notes:'Human resolution'};
+  const incident = {getValue:name=>values[name], setValue:(name,value)=>{values[name]=value;}};
+  hub.preparePatch(body,incident);
+  assert.equal(values.state,7);
+  assert.equal(hub.state(incident),'CLOSED');
+  assert.equal(values.close_code,'human-code');
+  assert.equal(values.close_notes,'Human resolution');
+  values.state=2; values.close_code=''; values.close_notes='';
+  hub.preparePatch({...body,expected:{state:'IN_PROGRESS'}},incident);
+  assert.equal(values.state,7);
+  assert.equal(values.close_code,'configured-resolution');
+  assert.equal(values.close_notes,'Closed by Cato Support synchronization.');
+});
+test('closure requires a distinct configured native Closed choice before writing', () => {
+  for (const closed of [undefined, '', 'invalid', 1, 2, 3, 6]) {
+    const profile={NEW:1,IN_PROGRESS:2,ON_HOLD:3,RESOLVED:6,CLOSED:closed};
+    const hub=new (runtime({gs:{getProperty:()=>JSON.stringify(profile)}}).CatoSyncHub)();
+    const incident={getValue:name=>name==='state'?'6':'',setValue:()=>assert.fail('Invalid profile must not write')};
+    assert.throws(()=>hub.preparePatch({...base,fields:{state:'CLOSED'},expected:{state:'RESOLVED'}},incident),/STATE_PROFILE_REQUIRED/);
+  }
+});
+test('receiver closure suppresses its source echo and independent source closure stays unsupported', () => {
+  const properties={'cato_sync.state_profile':JSON.stringify({NEW:1,IN_PROGRESS:2,ON_HOLD:3,RESOLVED:6,CLOSED:7})};
+  const hub=new (runtime({gs:{getProperty:name=>properties[name]}}).CatoSyncHub)();
+  const values={state:'7',priority:'3',short_description:'synthetic',sys_mod_count:'3'};
+  const current={getValue:name=>values[name],getUniqueValue:()=>base.recordId,operation:()=>'update',isActionAborted:()=>false,
+    short_description:{changes:()=>false},priority:{changes:()=>false},state:{changes:()=>true},hold_reason:{changes:()=>false}};
+  const previous={getValue:name=>name==='state'?'6':values[name]};
+  hub.enabled=hub.eligible=()=>true;
+  hub.ledger=()=>({getValue:()=> 'original-create'});
+  hub.activeEffect=()=>({body:{kind:'PATCH',fields:{state:'CLOSED'},expected:{state:'RESOLVED'}}});
+  hub.enqueue=()=>assert.fail('Inbound closure must not echo');
+  assert.equal(hub.captureIncident(current,previous),'');
+  hub.activeEffect=()=>null;
+  assert.throws(()=>hub.captureIncident(current,previous),/UNSUPPORTED_TRANSITION/);
+});
+test('closure recovery verifies the configured native audit without applying again', () => {
+  const properties={'cato_sync.state_profile':JSON.stringify({NEW:1,IN_PROGRESS:2,ON_HOLD:3,RESOLVED:6,CLOSED:7})};
+  const hub=new (runtime({gs:{getProperty:name=>properties[name]}}).CatoSyncHub)();
+  const body={...base,fields:{state:'CLOSED'},expected:{state:'RESOLVED'}};
+  hub.patchProof=(operation,field,value,actor)=>operation===body && field==='state' && value===7 && actor==='worker';
+  assert.equal(hub.committedPatch(body,'worker'),true);
+  assert.equal(hub.committedPatch(body,'different-worker'),false);
 });

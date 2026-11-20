@@ -21,6 +21,8 @@
     ['integration_id', 'account_id', 'instance_origin', 'assignment_group', 'gateway_url', 'gateway_credential_id', 'receiver_user', 'state_profile', 'priority_profile', 'resolution_code'].forEach(function (key) {
         require(Boolean(gs.getProperty('cato_sync.' + key, '')), 'MISSING_CONFIG_' + key);
     });
+    try { new CatoSyncHub().closedState(JSON.parse(gs.getProperty('cato_sync.state_profile', '{}'))); }
+    catch (error) { failures.push('CLOSED_STATE_PROFILE_REQUIRED'); }
     require(['group', 'group-and-title'].indexOf(String(gs.getProperty('cato_sync.capture_mode', 'group-and-title')) || 'group-and-title') >= 0,
         'INVALID_CAPTURE_MODE');
     try { require(Boolean(new CatoSyncHub().gatewayKey()), 'GATEWAY_CREDENTIAL_UNAVAILABLE'); }
@@ -39,7 +41,7 @@
         require(receiver, 'RECEIVER_ROLE_MISSING');
     }
     require(String(gs.getProperty('glide.buildname', '')) !== '', 'RELEASE_UNKNOWN');
-    gs.info(JSON.stringify({packageVersion: '0.3.1', release: gs.getProperty('glide.buildname', ''),
+    gs.info(JSON.stringify({packageVersion: '0.3.2', release: gs.getProperty('glide.buildname', ''),
         enabled: gs.getProperty('cato_sync.enabled', 'false'), failures: failures,
         remaining: ['Verify physical unique indexes', 'Run rollback/claim/journal/restart acceptance', 'Verify OAuth receiver succeeds and Table API is denied']}));
     if (failures.length) throw new Error('CATO_SYNC_VERIFICATION_FAILED');

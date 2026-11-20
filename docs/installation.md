@@ -30,7 +30,7 @@
 | `gateway_url` | Development tunnel HTTPS URL ending `/graphql` |
 | `gateway_credential_id` | sys_id of an active API Key Credential holding the local gateway key |
 | `receiver_user` | Dedicated runtime user's sys_id |
-| `state_profile` | JSON mapping NEW, IN_PROGRESS, ON_HOLD, RESOLVED and AWAITING_CALLER, AWAITING_VENDOR, AWAITING_CHANGE to this instance's actual state/hold_reason choice values |
+| `state_profile` | JSON mapping NEW, IN_PROGRESS, ON_HOLD, RESOLVED, CLOSED and AWAITING_CALLER, AWAITING_VENDOR, AWAITING_CHANGE to this instance's actual state/hold_reason choice values |
 | `priority_profile` | JSON map from each priority 1–5 to verified synthetic `impact` and `urgency` inputs |
 | `resolution_code` | Valid synthetic resolution choice on this instance |
 
@@ -51,7 +51,7 @@ Use synthetic records only and retain sys_ids plus sanitized outcomes. Never pas
 - Force the journal-ID ledger write to fail and verify on the target that the native journal insert aborts. Expire the claim before the callback and verify a stale worker cannot insert an untracked comment. Interrupt after reservation and before native write, and verify later deliveries on that incident wait behind the `UNCERTAIN` operation after retry exhaustion.
 - For inbound PATCH recovery, verify the native audit entries carry the exact operation reason and scheduled worker username, including inherited title/priority/state fields and hold reason. Interrupt after native update and before the sequence advances. Verify retry proves the recorded effects without applying them again, even if a later human edit changed the current value. Exercise overlapping human edits during application and verify the conflict behavior.
 - Verify LINK replay updates only the private ledger and persists the Zendesk ticket ID once.
-- Verify priority 1–5, native hold reasons, and resolution defaults survive all local business rules. Verify no closure or cancellation is synthesized.
+- Verify priority 1–5, native hold reasons, and resolution defaults survive all local business rules. Verify Zendesk closure applies the configured Closed choice, preserves existing resolution fields and does not echo. An independent Zendesk solve followed immediately by closure must also close ServiceNow. Customer-originated closure/cancellation and closed-ticket follow-up creation remain unsupported.
 - Simulate network loss after hub commit. Outbox retry must reuse byte-equivalent content/event identity. Retry eight times with backoff; preserve FAILED records for diagnosis.
 - Check worker claim fencing, lease recovery, unique indexes and local crash recovery with concurrent scheduled executions. No payloads or credentials in logs; only bounded error codes and record IDs.
 
@@ -74,3 +74,12 @@ References: [ServiceNow Scripted REST security](https://www.servicenow.com/docs/
 The reviewed local GraphQL contract wraps ingestion as `ingestEvent { event { id result state } }`. Upgrade the matching local gateway and this installer together while capture is paused; REST source envelopes and durable source identities are unchanged.
 
 The sender converts its captured REST table `incident` to GraphQL `INCIDENT` after commit verification. Stored outbox payloads retain their original identities/content.
+
+### Upgrade to 0.3.2
+
+Pause capture and hub dispatch, upgrade the receiver first, and add the verified native Closed
+choice to `state_profile.CLOSED` before running the hub with Zendesk closure support. The value
+must differ from NEW, IN_PROGRESS, ON_HOLD and RESOLVED. Missing or ambiguous configuration
+fails with STATE_PROFILE_REQUIRED. Preserve existing close code/notes; configured resolution
+defaults fill them only when absent. Retain earlier failed deliveries for controlled recovery;
+this upgrade does not reset or replay accepted work.

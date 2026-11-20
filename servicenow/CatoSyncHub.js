@@ -29,12 +29,20 @@ CatoSyncHub.prototype = {
         if (state === String(profile.NEW)) return 'NEW';
         if (state === String(profile.IN_PROGRESS)) return 'IN_PROGRESS';
         if (state === String(profile.RESOLVED)) return 'RESOLVED';
+        if (state === String(profile.CLOSED) && state === this.closedState(profile)) return 'CLOSED';
         if (state === String(profile.ON_HOLD)) {
             var reason = String(incident.getValue('hold_reason'));
             var names = ['AWAITING_CALLER', 'AWAITING_VENDOR', 'AWAITING_CHANGE'];
             for (var i = 0; i < names.length; i++) if (reason === String(profile[names[i]])) return names[i];
         }
         throw new Error('UNSUPPORTED_TRANSITION');
+    },
+    closedState: function (profile) {
+        var value = String(profile.CLOSED);
+        if (!/^-?\d+$/.test(value) || ['NEW', 'IN_PROGRESS', 'ON_HOLD', 'RESOLVED'].some(function (name) {
+            return String(profile[name]) === value;
+        })) throw new Error('STATE_PROFILE_REQUIRED');
+        return value;
     },
     source: function (incident) {
         return {instance: this.property('instance_origin'), table: 'incident', recordId: String(incident.getUniqueValue()), revision: Number(incident.getValue('sys_mod_count') || 0)};
@@ -89,6 +97,8 @@ CatoSyncHub.prototype = {
         if (current.short_description.changes()) change.title = fields.title;
         if (current.priority.changes()) change.priority = fields.priority;
         if (current.state.changes() || current.hold_reason.changes()) change.state = fields.state;
+        if (change.state === 'CLOSED' && (!delivery || delivery.body.kind !== 'PATCH' || delivery.body.fields.state !== 'CLOSED'))
+            throw new Error('UNSUPPORTED_TRANSITION');
         if (delivery && delivery.body.kind === 'PATCH') {
             this.requireExpectedFields(delivery.body, previous);
             var own = delivery.body.fields;
@@ -295,11 +305,15 @@ CatoSyncHub.prototype = {
         }
         if (body.fields.state !== undefined) {
             var profile = JSON.parse(this.property('state_profile'));
+            if (body.fields.state === 'CLOSED') this.closedState(profile);
             if (body.fields.state.indexOf('AWAITING_') === 0) { incident.setValue('state', profile.ON_HOLD); incident.setValue('hold_reason', profile[body.fields.state]); }
             else { incident.setValue('state', profile[body.fields.state]); incident.setValue('hold_reason', ''); }
             if (body.fields.state === 'RESOLVED') {
                 incident.setValue('close_code', this.property('resolution_code'));
                 incident.setValue('close_notes', 'Resolved by Cato Support (sandbox synchronization).');
+            } else if (body.fields.state === 'CLOSED') {
+                if (!incident.getValue('close_code')) incident.setValue('close_code', this.property('resolution_code'));
+                if (!incident.getValue('close_notes')) incident.setValue('close_notes', 'Closed by Cato Support synchronization.');
             }
         }
     },
@@ -403,7 +417,7 @@ CatoSyncHub.prototype = {
                 if (!this.apply(body, incident, row)) { this.finish(row, {u_state: 'PENDING'}); continue; }
                 this.finish(row, {u_state: 'APPLIED', u_error: ''});
             } catch (error) {
-                if (['FIELD_CONFLICT', 'RECORD_NOT_OWNED', 'UNSUPPORTED_TRANSITION', 'LOCAL_EFFECT_MISMATCH', 'PRIORITY_PROFILE_REQUIRED'].indexOf(error.message) >= 0)
+                if (['FIELD_CONFLICT', 'RECORD_NOT_OWNED', 'UNSUPPORTED_TRANSITION', 'LOCAL_EFFECT_MISMATCH', 'PRIORITY_PROFILE_REQUIRED', 'STATE_PROFILE_REQUIRED'].indexOf(error.message) >= 0)
                     this.finish(row, {u_state: 'FAILED', u_error: error.message});
                 else if (error.message === 'LOCAL_EFFECT_UNCERTAIN') this.retry(row, 'LOCAL_EFFECT_UNCERTAIN', 0);
                 else this.retry(row, 'LOCAL_APPLY_FAILED', 0);

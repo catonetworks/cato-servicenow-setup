@@ -28,7 +28,7 @@ var CatoSyncRules = {
                 }
                 if (body.expected[field] === null || typeof body.expected[field] !== typeof body.fields[field]) throw new Error('INVALID_EXPECTATION');
                 if (field === 'title' && (typeof body.fields[field] !== 'string' || !body.fields[field].trim() || body.fields[field].length > 160)) throw new Error('INVALID_TITLE');
-                if (field === 'state' && ['IN_PROGRESS', 'AWAITING_CALLER', 'AWAITING_VENDOR', 'AWAITING_CHANGE', 'RESOLVED'].indexOf(body.fields[field]) < 0) throw new Error('UNSUPPORTED_TRANSITION');
+                if (field === 'state' && ['IN_PROGRESS', 'AWAITING_CALLER', 'AWAITING_VENDOR', 'AWAITING_CHANGE', 'RESOLVED', 'CLOSED'].indexOf(body.fields[field]) < 0) throw new Error('UNSUPPORTED_TRANSITION');
             });
             if (Object.keys(body.expected).some(function (key) { return !Object.prototype.hasOwnProperty.call(body.fields, key); })) throw new Error('INVALID_FIELD');
         } else if (body.kind === 'JOURNAL') {
