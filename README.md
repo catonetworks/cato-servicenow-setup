@@ -9,5 +9,6 @@ The app includes three admin-protected durable tables, source capture rules, the
 - [Target installation](docs/installation.md)
 - [Publisher release procedure](docs/publishing.md)
 - [Acceptance checklist](docs/acceptance.md)
+- [0.4.0 verification and service compatibility](docs/releases/0.4.0-acceptance.md)
 
 Build with `npm run build` using Python 3. Run the regression suite with `npm test` using Node.js. The build produces the importable XML, SHA-256 checksums and manifest, plus the maintainer bootstrap at `build/install.js`. Candidates with outstanding native clean-install or round-trip checks are published as prereleases.
