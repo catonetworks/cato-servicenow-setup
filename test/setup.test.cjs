@@ -63,6 +63,23 @@ test('invalid mappings and identity report multiple failures before any property
   assert.ok(result.errors.some(message => message.includes('64-bit')));
   assert.equal(writes.length, 0);
 });
+test('Zurich inherited scripting gate is allowed but explicit scripting and data roles are rejected', () => {
+  function validate(extraRole, inherited) {
+    const {service, context} = setup();
+    context.GlideRecordSecure = function () {
+      let index = -1;
+      const rows = [{name: 'cato_sync.receiver', inherited: 'false'}, {name: extraRole, inherited}];
+      this.addQuery = this.query = () => {};
+      this.next = () => { index++; this.role = {name: rows[index]?.name}; return index < rows.length; };
+      this.getValue = key => rows[index][key];
+    };
+    return service.execute('save', config()).errors;
+  }
+  assert.equal(validate('snc_required_script_writer_permission', 'true').length, 0);
+  for (const [role, inherited] of [['snc_required_script_writer_permission', 'false'], ['itil', 'true'], ['admin', 'false']]) {
+    assert.ok(validate(role, inherited).some(error => error === 'Remove receiver role: ' + role));
+  }
+});
 test('save rejects enabled configuration and leaves failed writes paused', () => {
   const {service, properties, context} = setup({'cato_sync.enabled': 'true'});
   assert.match(service.execute('save', config()).errors[0], /Pause/);

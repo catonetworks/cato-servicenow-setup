@@ -35,7 +35,7 @@
 </tbody></table><p><label for="resolution_code">Resolution code</label> <select id="resolution_code"></select></p>
 </fieldset>
 <p>Before saving changes, pause synchronization and wait for active jobs to finish.</p>
-<p><label><input id="external-checks" type="checkbox"/> I verified gateway connectivity, OAuth receiver access, denial of Incident and private Table API access, priority derivation, and the bidirectional acceptance checklist for these settings.</label></p>
+<p><label><input id="external-checks" type="checkbox"/> I verified gateway connectivity, OAuth receiver access, denial of Incident and private Table API access, native priority derivation, and that Zendesk On-hold is available for the configured lifecycle.</label></p>
 <p><button id="save" type="button" onclick="catoSetupAction('save')" disabled="disabled">Save</button>
 <button id="validate" type="button" onclick="catoSetupAction('validate')" disabled="disabled">Validate</button>
 <button id="enable" type="button" onclick="catoSetupAction('enable')" disabled="disabled">Enable</button>

@@ -21,11 +21,13 @@ Create an active API Key Credential containing the gateway key, with header `x-a
 
 Create an active web-service-only receiver user with `cato_sync.receiver` and, where required, `snc_internal`. Limit OAuth access to `/api/global/cato_sync/v1/receive` and configure Sync Hub to authenticate as that user. Verify endpoint success and Incident/private Table API denial through actual requests.
 
+Zurich can automatically inherit `snc_required_script_writer_permission` through its Conditional Script Writer group. Setup permits that inherited platform gate; it does not grant table or field access by itself. Do not assign it directly or add application/data-access roles to the receiver. See [ServiceNow's two-layer scripting access model](https://www.servicenow.com/docs/r/zurich/platform-security/access-control/explore-sgt.html).
+
 In Setup, enter the matching integration UUID and positive signed 64-bit Cato account ID, gateway HTTPS URL ending `/graphql`, and assignment group. Review the ServiceNow origin and select the credential and receiver user. Select native values for the five states and three hold reasons, impact/urgency inputs for priorities 1–5, and a resolution code. Configure the optional title filter under Routing options.
 
 Select **Save** while paused. Save creates/verifies the four physical unique indexes before persisting configuration. A storage or property write failure leaves synchronization paused. Review the saved values and retry before activation. Select **Validate** to check saved settings, credential access, table protections, indexes and Incident auditing. It sends no network or incident probe.
 
-Complete the [acceptance checklist](acceptance.md), confirm the external checks in the form, and select **Enable**. Enable revalidates saved settings. Verify target priority derivation, dependent choice rules and native audit reason/actor evidence with isolated test records.
+While paused, verify gateway connectivity, OAuth receiver access, Incident/private Table API denial, and all five native priority mappings with isolated test records. Have the Zendesk administrator confirm the optional On-hold status is enabled; Vendor and Change holds require it. See [Zendesk On-hold setup](https://support.zendesk.com/hc/en-us/articles/4408889282458-Adding-the-On-hold-ticket-status-to-Zendesk-Support). Use a separate incident caller and worker identity during acceptance, since native caller replies can reopen an Awaiting Caller incident. Confirm those external checks in the form and select **Enable**. Enable revalidates saved settings. Then run the bidirectional tests in the [acceptance checklist](acceptance.md) using eligible New incidents with nonblank titles (at most 160 characters) and descriptions, including dependent choice rules and native audit reason/actor evidence, before production rollout. Pause again if any check fails.
 
 ## Upgrades and recovery
 

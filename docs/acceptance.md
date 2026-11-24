@@ -9,6 +9,7 @@ Record app/version, source commit, installer checksum, target Zurich build, inst
 - Configure entirely through Setup. Confirm missing/invalid fields and mappings are reported together. Save failure must leave capture paused. Validate and Enable use saved settings. Enable requires external-check confirmation. Pause must allow editing again after workers finish.
 - Inspect the three private tables, twelve CRUD ACLs, their admin-only role mappings, web-service restrictions and four physical unique indexes. Ordinary incident agents must be unable to read/modify private rows.
 - Verify dedicated OAuth receiver success. Deny anonymous, Basic, wrong identity, wrong role and forged integration requests. Verify Incident/private Table API denial for the receiver user.
+- Confirm Zendesk On-hold is enabled and use a test caller distinct from the worker identity. Preserve the target’s native caller-reply workflow.
 - Verify native choice inheritance/dependencies, all five priority outputs, hold reasons, resolution defaults, and audit evidence for inherited Incident fields. Configuration validation alone does not prove these behaviors.
 
 ## Bidirectional behavior and failure recovery

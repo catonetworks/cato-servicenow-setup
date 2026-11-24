@@ -59,6 +59,28 @@ class UpdateSetTests(unittest.TestCase):
         manifest = json.loads((ROOT / 'build/update-set-manifest.json').read_text())
         self.assertFalse(manifest['native_clean_install_verified'])
 
+    def test_artifacts_have_distinct_import_ids_and_stable_target_ids(self):
+        original = copy.deepcopy(self.root)
+        target_payloads = [u.findtext('payload') for u in original.findall('sys_update_xml')]
+        original_id = original.findtext('sys_remote_update_set/sys_id')
+        for version, changed_payload in [('0.4.1', False), ('0.4.0', True)]:
+            root = copy.deepcopy(original)
+            if changed_payload:
+                root.find('sys_update_xml/payload').text += '\n'
+            payloads = [u.findtext('payload') for u in root.findall('sys_update_xml')]
+            builder.assign_transport_ids(root, version)
+            remote_id = root.findtext('sys_remote_update_set/sys_id')
+            self.assertNotEqual(remote_id, original_id)
+            self.assertNotEqual(root.findtext('sys_remote_update_set/remote_sys_id'),
+                                original.findtext('sys_remote_update_set/remote_sys_id'))
+            self.assertTrue(all(u.findtext('remote_update_set') == remote_id for u in root.findall('sys_update_xml')))
+            self.assertTrue(set(u.findtext('sys_id') for u in root.findall('sys_update_xml')).isdisjoint(
+                u.findtext('sys_id') for u in original.findall('sys_update_xml')))
+            self.assertEqual([u.findtext('payload') for u in root.findall('sys_update_xml')], payloads)
+        builder.assign_transport_ids(original, '0.4.0')
+        self.assertEqual(original.findtext('sys_remote_update_set/sys_id'), original_id)
+        self.assertEqual([u.findtext('payload') for u in original.findall('sys_update_xml')], target_payloads)
+
 
 if __name__ == '__main__':
     unittest.main()

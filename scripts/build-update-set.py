@@ -82,6 +82,24 @@ def validate(root, version):
     return counts
 
 
+def assign_transport_ids(root, version):
+    """Keep target record IDs stable and give each artifact its own import identity."""
+    updates = root.findall('sys_update_xml')
+    intent = {'version': version, 'updates': sorted(
+        (update.findtext('name'), update.findtext('payload')) for update in updates)}
+    fingerprint = hashlib.sha256(json.dumps(intent, sort_keys=True).encode()).hexdigest()
+
+    def identity(kind):
+        return hashlib.sha256(('cato-sync-hub:' + fingerprint + ':' + kind).encode()).hexdigest()[:32]
+
+    remote_id = identity('remote-update-set')
+    root.find('sys_remote_update_set/sys_id').text = remote_id
+    root.find('sys_remote_update_set/remote_sys_id').text = identity('source-update-set')
+    for update in updates:
+        update.find('sys_id').text = identity('update:' + update.findtext('name'))
+        update.find('remote_update_set').text = remote_id
+
+
 def build():
     version = json.loads((ROOT / 'package.json').read_text())['version']
     template = (ROOT / 'servicenow/update-set-template.xml').read_text()
@@ -106,6 +124,7 @@ def build():
                 row.find('value').text = version
         update.find('payload').text = ET.tostring(payload, encoding='unicode')
     root.find('sys_remote_update_set/name').text = 'Cato Sync Hub ' + version
+    assign_transport_ids(root, version)
     counts = validate(root, version)
     content = ET.tostring(root, encoding='utf-8', xml_declaration=True) + b'\n'
     for forbidden in [b'catorefarch', b'dev467475', b'pinggy.net', b'synthetic_priority_five', b'__SOURCE_', b'__BUSINESS_RULE_SOURCE__']:

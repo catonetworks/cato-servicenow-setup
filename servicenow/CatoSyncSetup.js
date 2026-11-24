@@ -66,7 +66,10 @@ CatoSyncSetup.prototype = {
             while (roles.next()) {
                 var name = String(roles.role.name);
                 if (name === 'cato_sync.receiver') receiver = true;
-                else check(name === 'snc_internal', 'Remove receiver role: ' + name);
+                // Zurich may inherit this additional deny-unless gate through its
+                // Conditional Script Writer group; it grants no table/field access.
+                else check(name === 'snc_internal' || (name === 'snc_required_script_writer_permission' &&
+                    ['true', '1'].indexOf(String(roles.getValue('inherited'))) >= 0), 'Remove receiver role: ' + name);
             }
         }
         check(receiver, 'Receiver user requires cato_sync.receiver.');
