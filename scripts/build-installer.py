@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
-sources = {p.name: p.read_text() for p in (root / 'servicenow').glob('*.js')}
+files = ['CatoSyncRules.js', 'CatoSyncHub.js', 'incident-rule.js', 'incident-confirm-rule.js',
+         'journal-rule.js', 'receiver.js', 'CatoSyncSetup.js', 'CatoSyncSetupAjax.js',
+         'setup-page.xml', 'setup-client.js']
+sources = {name: (root / 'servicenow' / name).read_text() for name in files}
 template = (root / 'scripts/install-template.js').read_text()
 output = root / 'build/install.js'
 output.parent.mkdir(exist_ok=True)

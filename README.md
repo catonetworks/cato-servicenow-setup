@@ -1,18 +1,13 @@
-# Cato ServiceNow setup
+# Cato Sync Hub for ServiceNow
 
-Capture and receiver scripts for ServiceNow incidents synchronized through Sync Hub. Licensed under the [Apache License, Version 2.0](LICENSE). Installation starts disabled. Validate the target ServiceNow release and routing group before rollout.
+Bidirectional incident synchronization through Sync Hub. Version 0.4.0 targets a Global application on ServiceNow Zurich. Licensed under Apache-2.0.
 
-Version 0.3 targets an ordinary-admin install of a Global application on Zurich. The publisher uses ServiceNow's table creation controls to generate admin-only table ACLs. The runtime keeps source receipts, claims and journal IDs in the three protected application tables. The package adds no fields or ACLs to Incident or Journal Entry.
+Download the versioned update-set XML from [GitHub Releases](https://github.com/catonetworks/cato-servicenow-setup/releases). Import it through Retrieved Update Sets, preview and commit, then open **Cato Sync Hub → Setup** and **Save → Validate → Enable**. The XML includes the application and table definitions. New installations start paused.
 
-The ServiceNow receiver accepts version-1 deliveries into an inbox before returning HTTP 202. A scheduled processor applies them in sequence. The acknowledgment covers inbox storage. Application is recorded separately.
+The app includes three admin-protected durable tables, source capture rules, the authenticated receiver, scheduled workers, and an administrator setup page. Supported operations include incident creation, title, priority, working/hold/resolved states, Zendesk-driven closure, public comments in both directions, and outbound private work notes. Description is copied at creation. Attachments, customer-originated closure/cancellation, private Zendesk notes, reconciliation and replay APIs are outside the supported contract.
 
-```sh
-npm run build
-npm test
-```
+- [Target installation](docs/installation.md)
+- [Publisher release procedure](docs/publishing.md)
+- [Acceptance checklist](docs/acceptance.md)
 
-[Build the Global application and install it from the Application Repository](docs/installation.md). `build/install.js` is a publisher bootstrap. The application is disabled at first install. Use a dedicated synthetic profile for acceptance. See the [prior native acceptance record](docs/native-acceptance.md) for version 0.2 results.
-
-Supported: creation, title, priority, working/hold/resolved states, inbound Zendesk closure, public comments, outbound private work notes. Description is copied only at creation. Attachments, customer-originated closure/cancellation, private Zendesk notes, reconciliation, replay APIs, and production deployment are excluded.
-
-Local JavaScript tests cover envelope validation, sequence advancement, exact journal recovery, stale-claim rejection, and PATCH audit matching. The installation guide defines the native release checks.
+Build with `npm run build` using Python 3. Run the regression suite with `npm test` using Node.js. The build produces the importable XML, SHA-256 checksums and manifest, plus the maintainer bootstrap at `build/install.js`. Candidates with outstanding native clean-install or round-trip checks are published as prereleases.

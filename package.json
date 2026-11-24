@@ -1,11 +1,11 @@
 {
   "name": "cato-servicenow-setup",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node --test test/*.test.cjs",
-    "build": "python3 scripts/build-installer.py"
+    "test": "node --test test/*.test.cjs && python3 -m unittest discover -s test -p '*_test.py'",
+    "build": "python3 scripts/build-installer.py && python3 scripts/build-update-set.py"
   },
   "license": "Apache-2.0"
 }

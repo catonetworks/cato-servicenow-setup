@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide">
+<g:evaluate var="jvar_allowed">gs.hasRole('admin');</g:evaluate>
+<j:if test="${jvar_allowed}">
+<main style="max-width:860px;margin:24px auto;padding:0 20px">
+<h1>Cato Sync Hub setup</h1>
+<p id="sync-status" role="status">Loading configuration…</p>
+<fieldset id="sync-fields" disabled="disabled"><legend>Connection and routing</legend>
+<p><label for="integration_id">Integration UUID</label><br/><input class="form-control" id="integration_id" type="text" maxlength="2048"/></p>
+<p><label for="account_id">Cato account ID</label><br/><input class="form-control" id="account_id" type="text" maxlength="2048"/></p>
+<p><label for="gateway_url">Gateway GraphQL URL</label><br/><input class="form-control" id="gateway_url" type="text" maxlength="2048"/></p>
+<p><label for="instance_origin">ServiceNow HTTPS origin</label><br/><input class="form-control" id="instance_origin" type="text" maxlength="2048"/></p>
+<p><label for="sys_display.assignment_group">Assignment group</label><br/><g:ui_reference name="assignment_group" id="assignment_group" table="sys_user_group" query="active=true"/></p>
+<p><label for="sys_display.gateway_credential_id">API key credential</label><br/><g:ui_reference name="gateway_credential_id" id="gateway_credential_id" table="api_key_credentials" query="active=true"/></p>
+<p><label for="sys_display.receiver_user">OAuth receiver user</label><br/><g:ui_reference name="receiver_user" id="receiver_user" table="sys_user" query="active=true"/></p>
+<p>Create credentials and the web-service-only OAuth user through the native ServiceNow forms. Assign the receiver role cato_sync.receiver.</p>
+<details><summary>Routing options</summary>
+<p><label for="capture_mode">Capture mode</label><select id="capture_mode"><option value="group">Assignment group</option><option value="group-and-title">Assignment group and title prefix</option></select></p>
+<p><label for="title_prefix">Title prefix</label><input id="title_prefix" type="text" maxlength="160"/></p></details>
+<h2>Incident mappings</h2>
+<p><label for="state_NEW">New</label> <select id="state_NEW"></select></p>
+<p><label for="state_IN_PROGRESS">In Progress</label> <select id="state_IN_PROGRESS"></select></p>
+<p><label for="state_ON_HOLD">On Hold</label> <select id="state_ON_HOLD"></select></p>
+<p><label for="state_RESOLVED">Resolved</label> <select id="state_RESOLVED"></select></p>
+<p><label for="state_CLOSED">Closed</label> <select id="state_CLOSED"></select></p>
+<p><label for="state_AWAITING_CALLER">Awaiting Caller</label> <select id="state_AWAITING_CALLER"></select></p>
+<p><label for="state_AWAITING_VENDOR">Awaiting Vendor</label> <select id="state_AWAITING_VENDOR"></select></p>
+<p><label for="state_AWAITING_CHANGE">Awaiting Change</label> <select id="state_AWAITING_CHANGE"></select></p>
+<table class="table"><caption>Native inputs for each priority</caption><thead><tr><th>Priority</th><th>Impact</th><th>Urgency</th></tr></thead><tbody>
+<tr><th>1</th><td><select id="impact_1" aria-label="Priority 1 impact"></select></td><td><select id="urgency_1" aria-label="Priority 1 urgency"></select></td></tr>
+<tr><th>2</th><td><select id="impact_2" aria-label="Priority 2 impact"></select></td><td><select id="urgency_2" aria-label="Priority 2 urgency"></select></td></tr>
+<tr><th>3</th><td><select id="impact_3" aria-label="Priority 3 impact"></select></td><td><select id="urgency_3" aria-label="Priority 3 urgency"></select></td></tr>
+<tr><th>4</th><td><select id="impact_4" aria-label="Priority 4 impact"></select></td><td><select id="urgency_4" aria-label="Priority 4 urgency"></select></td></tr>
+<tr><th>5</th><td><select id="impact_5" aria-label="Priority 5 impact"></select></td><td><select id="urgency_5" aria-label="Priority 5 urgency"></select></td></tr>
+</tbody></table><p><label for="resolution_code">Resolution code</label> <select id="resolution_code"></select></p>
+</fieldset>
+<p>Before saving changes, pause synchronization and wait for active jobs to finish.</p>
+<p><label><input id="external-checks" type="checkbox"/> I verified gateway connectivity, OAuth receiver access, denial of Incident and private Table API access, priority derivation, and the bidirectional acceptance checklist for these settings.</label></p>
+<p><button id="save" type="button" onclick="catoSetupAction('save')" disabled="disabled">Save</button>
+<button id="validate" type="button" onclick="catoSetupAction('validate')" disabled="disabled">Validate</button>
+<button id="enable" type="button" onclick="catoSetupAction('enable')" disabled="disabled">Enable</button>
+<button id="pause" type="button" onclick="catoSetupAction('pause')" disabled="disabled">Pause</button></p>
+<div id="setup-results" role="status" aria-live="polite"></div>
+</main></j:if></j:jelly>

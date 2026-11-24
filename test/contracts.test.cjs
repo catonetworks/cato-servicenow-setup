@@ -20,7 +20,7 @@ test('sender encodes a CMA Int account variable without floating point conversio
     assert.ok(parsed.query.includes('$accountId: Int!'));
     assert.deepEqual(parsed.variables.event, event);
   }
-  for (const id of ['sandbox', '0', '-1', '+1', '01', '1.5', '9223372036854775808', '1,"forged":true']) {
+  for (const id of ['invalid-account', '0', '-1', '+1', '01', '1.5', '9223372036854775808', '1,"forged":true']) {
     account = id;
     assert.throws(() => hub.graphqlRequest(event), /INVALID_ACCOUNT_ID/);
   }

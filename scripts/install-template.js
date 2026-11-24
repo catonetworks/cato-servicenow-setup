@@ -16,6 +16,7 @@
         if (!exists) {
             row.initialize();
             if (row.isValidField('sys_package')) row.setValue('sys_package', appId);
+            if (row.isValidField('sys_scope')) row.setValue('sys_scope', appId);
         } else if (row.isValidField('sys_package') && String(row.getValue('sys_package')) !== appId) {
             throw new Error('Metadata already owned by another application: ' + table);
         }
@@ -98,6 +99,12 @@
     rule('Cato Sync incident capture v1', 'incident', 'before', true, true, 1000000, 'incident-rule.js');
     rule('Cato Sync incident receipt v1', 'incident', 'after', true, true, 50, 'incident-confirm-rule.js');
     rule('Cato Sync journal capture v1', 'sys_journal_field', 'before', true, false, 1000000, 'journal-rule.js');
+    // Create the UI page's admin read ACL with native controls before publication.
+    upsert('sys_script_include', {name: 'CatoSyncSetup'}, {script: sources['CatoSyncSetup.js'], active: true, client_callable: false, access: 'package_private'});
+    upsert('sys_script_include', {name: 'CatoSyncSetupAjax'}, {script: sources['CatoSyncSetupAjax.js'], active: true, client_callable: true, access: 'package_private'});
+    upsert('sys_ui_page', {name: 'cato_sync_setup'}, {html: sources['setup-page.xml'], client_script: sources['setup-client.js'], processing_script: '', direct: false});
+    var menu = upsert('sys_app_application', {title: 'Cato Sync Hub'}, {active: true, roles: 'admin'});
+    upsert('sys_app_module', {application: menu, title: 'Setup'}, {active: true, roles: 'admin', link_type: 'DIRECT', query: 'cato_sync_setup.do'});
     var api = upsert('sys_ws_definition', {service_id: 'cato_sync'}, {name: 'Cato Sync Hub receiver', active: true, namespace: 'global'});
     upsert('sys_ws_operation', {web_service_definition: api, name: 'Receive v1'}, {
         http_method: 'POST', relative_path: '/v1/receive', active: true, requires_authentication: true,
@@ -107,6 +114,6 @@
         upsert('sysauto_script', {name: 'Cato Sync ' + method + ' v1'}, {active: true, run_type: 'periodically',
             run_period: '1970-01-01 00:00:05', script: 'new CatoSyncHub().' + method + '();'});
     });
-    upsert('sys_properties', {name: 'cato_sync.package_version'}, {value: '0.3.3', type: 'string'});
-    gs.info('Cato Sync 0.3.3 installed DISABLED. Verify source abort and commit evidence before enabling.');
+    upsert('sys_properties', {name: 'cato_sync.package_version'}, {value: '0.4.0', type: 'string'});
+    gs.info('Cato Sync 0.4.0 installed DISABLED. Verify source abort and commit evidence before enabling.');
 })();

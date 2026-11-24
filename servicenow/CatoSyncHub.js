@@ -317,7 +317,7 @@ CatoSyncHub.prototype = {
             else { incident.setValue('state', profile[body.fields.state]); incident.setValue('hold_reason', ''); }
             if (body.fields.state === 'RESOLVED') {
                 incident.setValue('close_code', this.property('resolution_code'));
-                incident.setValue('close_notes', 'Resolved by Cato Support (sandbox synchronization).');
+                incident.setValue('close_notes', 'Resolved by Cato Support synchronization.');
             } else if (body.fields.state === 'CLOSED') {
                 if (!incident.getValue('close_code')) incident.setValue('close_code', this.property('resolution_code'));
                 if (!incident.getValue('close_notes')) incident.setValue('close_notes', 'Closed by Cato Support synchronization.');
