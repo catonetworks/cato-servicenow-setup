@@ -4,6 +4,14 @@ Download `cato-sync-hub-0.4.0.xml` and `SHA256SUMS` from the approved [GitHub re
 
 The XML contains the Global application, three standalone private tables and their columns, thirteen admin-only ACLs and role mappings, four Script Includes, three Business Rules, the Scripted REST API and operation, two workers, the Setup page and navigator entries, and two default properties. The package contains configuration metadata. Credentials, users, routing groups, customer settings and durable rows stay in their owning environments.
 
+## Installation permissions and target release
+
+The customer installer must have `admin` and the ability to elevate to `security_admin`. Before importing the XML, open the user menu, select **Elevate Roles**, select **security_admin**, and confirm. Keep the elevated session for import, preview, commit and any required ACL inspection or repair. The update set already includes all thirteen ACLs and their role mappings; there is no separate manual ACL-creation step.
+
+After installation and ACL checks, end the elevation. **Cato Sync Hub → Setup** and its **Save, Validate, Enable and Pause** actions require ordinary `admin`, including creation/verification of indexes during Save. The dedicated OAuth receiver uses `cato_sync.receiver` and permitted platform prerequisites only. Never give that integration identity `admin` or `security_admin`.
+
+The customer plans to use **ServiceNow Australia**. The 0.4.0 native installation, upgrade and synchronization evidence is from **Zurich**. Complete the acceptance checklist on the exact Australia build/patch before production activation, including XML/ACL import, Setup credential access and index creation, OAuth restrictions and the bidirectional round trip. This guide does not claim that Australia has passed those checks.
+
 ## Start with Cato-assisted onboarding
 
 **The integration UUID is provided by Cato after Cato registers your integration.** Request Sync Hub onboarding from the Cato contact arranging your rollout. Receive the completed connection handoff described below before enabling synchronization. Generating a UUID yourself, importing this XML, or creating a ServiceNow credential does not register an integration in Cato.
@@ -43,14 +51,14 @@ The customer supplies Cato the ServiceNow HTTPS origin and receiver endpoint `<S
 
 ## Import, preview and commit
 
-1. Sign in to the receiving instance with administrator access. Follow the instance's security policy for XML imports containing ACL metadata. The documented Zurich XML-import procedure calls for `security_admin` elevation. The reference instance accepted import, preview and commit with ordinary admin access.
+1. Sign in as the customer installation administrator with `admin`, then use **Elevate Roles → security_admin**. Use this elevated session to import the package and verify its security metadata. Follow the receiving instance’s change-control policy.
 2. Open **System Update Sets → Retrieved Update Sets** and select **Import Update Set from XML**.
 3. Choose `cato-sync-hub-0.4.0.xml`, then select **Upload**. Open **Cato Sync Hub 0.4.0** in state Loaded.
 4. Select **Preview Update Set**. Review and resolve every preview problem by comparing the proposed update with the target configuration. Re-preview after any resolution. Preserve all required app, table and ACL definitions.
 5. Select **Commit Update Set** after preview succeeds. Review the commit log and confirm the final state is Committed. Committing requires `admin`.
-6. Open **Cato Sync Hub → Setup**. Confirm synchronization is paused. The app and table definitions are installed by the update set.
+6. Verify the packaged ACLs and role mappings, then end `security_admin` elevation. Open **Cato Sync Hub → Setup** as ordinary `admin`. Confirm synchronization is paused. The app and table definitions are installed by the update set.
 
-[ServiceNow XML transfer and import](https://www.servicenow.com/docs/r/zurich/application-development/system-update-sets/t_SaveAnUpdateSetAsAnXMLFile.html) · [Preview and commit](https://www.servicenow.com/docs/r/zurich/application-development/system-update-sets/t_CommitAnUpdateSet.html)
+[ServiceNow XML transfer and import](https://www.servicenow.com/docs/r/application-development/system-update-sets/t_SaveAnUpdateSetAsAnXMLFile.html) · [ACL administration](https://www.servicenow.com/docs/r/platform-security/access-control/t_CreateAnACLRule.html) · [Preview and commit](https://www.servicenow.com/docs/r/zurich/application-development/system-update-sets/t_CommitAnUpdateSet.html)
 
 ## Prepare identities and configure
 
@@ -68,7 +76,7 @@ While paused, verify gateway connectivity, OAuth receiver access, Incident/priva
 
 ## Upgrades and recovery
 
-Pause capture and hub dispatch, wait for active workers, and back up metadata and the three durable tables. Import the reviewed version through the same preview/commit process. Preserve incident sequences, inbox/outbox rows and delivery identities. The disabled property in the package pauses synchronization after import. Verify it before proceeding.
+Pause capture and hub dispatch, wait for active workers, and back up metadata and the three durable tables. Elevate to `security_admin` and import the reviewed version through the same preview/commit process. Verify the ACLs, end elevation and use ordinary `admin` for Setup. Preserve incident sequences, inbox/outbox rows and delivery identities. The disabled property in the package pauses synchronization after import. Verify it before proceeding.
 
 Use matching sender/gateway versions. The gateway must bind the configured account/integration and implement `syncHub.ingestEvent { event { id result state } }`. Its account argument uses the CMA signed-64-bit `Int!` contract and is emitted as an exact JSON integer.
 

@@ -12,7 +12,7 @@ The steps below are **required Cato operator work and readiness evidence**. Cato
 
 Record the customer administrator, Cato rollout owner, intended environment, actual numeric account ID and canonical ServiceNow HTTPS origin. Verify that the customer is authorized for that account and the requested connection. Check commercial-account eligibility and the approved rollout gate; restricted accounts must remain disabled. Resolve the registered gate and permissions with the owning platform team rather than inventing identifiers.
 
-Tell the customer to import the XML while paused. The receiver role and endpoint must exist before the customer can finish preparing the dedicated receiver user and OAuth application. Cato can prepare its gateway and Zendesk configuration in parallel.
+Confirm the customer installer has `admin` and can elevate to `security_admin` for XML import and ACL verification. Routine Setup actions require ordinary `admin`; the dedicated receiver must never receive either administrative role. Record the target ServiceNow release and patch, and arrange acceptance on that exact build (Australia qualification is still pending; existing 0.4.0 native evidence is from Zurich). Tell the customer to import the XML while paused. The receiver role and endpoint must exist before the customer can finish preparing the dedicated receiver user and OAuth application. Cato can prepare its gateway and Zendesk configuration in parallel.
 
 ## 2. Collect the customer-owned receiver details
 

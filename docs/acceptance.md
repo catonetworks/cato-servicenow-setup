@@ -1,14 +1,14 @@
 # Release acceptance checklist
 
-Record app/version, source commit, installer checksum, target Zurich build, install actor and sanitized outcomes. Use isolated test incidents and retain their IDs in release evidence outside the distributed package.
+Record app/version, source commit, installer checksum, target ServiceNow release/build/patch, install actor, elevated roles and sanitized outcomes. Use isolated test incidents and retain their IDs in release evidence outside the distributed package.
 
 ## Installation and access
 
-- Import, preview and commit the XML on a clean target using the instance’s required installation privileges. Confirm synchronization is paused and Setup is available in the navigator.
+- Use `admin` with `security_admin` elevation to import, preview and commit the XML on a clean target. Verify all thirteen packaged ACLs and role mappings. End elevation and verify Setup and its actions as ordinary `admin`. Confirm synchronization is paused and Setup is available in the navigator.
 - Verify the page ACL, AJAX actions and native reference lookups reject anonymous/non-admin users. Verify native session/CSRF enforcement for setup requests.
 - Configure entirely through Setup. Confirm missing/invalid fields and mappings are reported together. Save failure must leave capture paused. Validate and Enable use saved settings. Enable requires external-check confirmation. Pause must allow editing again after workers finish.
 - Inspect the three private tables, twelve CRUD ACLs, their admin-only role mappings, web-service restrictions and four physical unique indexes. Ordinary incident agents must be unable to read/modify private rows.
-- Verify dedicated OAuth receiver success. Deny anonymous, Basic, wrong identity, wrong role and forged integration requests. Verify Incident/private Table API denial for the receiver user.
+- Verify the dedicated receiver has neither `admin` nor `security_admin`. Verify dedicated OAuth receiver success. Deny anonymous, Basic, wrong identity, wrong role and forged integration requests. Verify Incident/private Table API denial for the receiver user.
 - Confirm Zendesk On-hold is enabled and use a test caller distinct from the worker identity. Preserve the target’s native caller-reply workflow.
 - Verify native choice inheritance/dependencies, all five priority outputs, hold reasons, resolution defaults, and audit evidence for inherited Incident fields. Configuration validation alone does not prove these behaviors.
 
