@@ -8,6 +8,8 @@ Download the versioned update-set XML from [GitHub Releases](https://github.com/
 
 The app includes three admin-protected durable tables, source capture rules, the authenticated receiver, scheduled workers, and an administrator setup page. Supported operations include incident creation, title, priority, working/hold/resolved states, Zendesk-driven closure, public comments in both directions, and outbound private work notes. Description is copied at creation. Attachments, customer-originated closure/cancellation, private Zendesk notes, reconciliation and replay APIs are outside the supported contract.
 
+**What are Incident mappings?** In Setup, select the customer's existing ServiceNow states and hold reasons so Sync Hub can translate status changes to and from Zendesk. For example, Zendesk Pending becomes ServiceNow On Hold with the Awaiting Caller reason. The priority rows select Impact/Urgency inputs for each ServiceNow priority, and the resolution code supplies the required code when resolving an incident. See [Incident mappings explained](docs/installation.md#what-incident-mappings-mean) for selection guidance, examples and differences between the two systems.
+
 - [Target installation and where every value comes from](docs/installation.md)
 - [Cato-side provisioning and customer handoff](docs/cato-provisioning.md)
 - [Publisher release procedure](docs/publishing.md)

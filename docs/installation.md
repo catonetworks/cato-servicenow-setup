@@ -68,7 +68,45 @@ Create an active web-service-only receiver user with `cato_sync.receiver` and, w
 
 Zurich can automatically inherit `snc_required_script_writer_permission` through its Conditional Script Writer group. Setup permits that inherited platform gate; it does not grant table or field access by itself. Do not assign it directly or add application/data-access roles to the receiver. See [ServiceNow's two-layer scripting access model](https://www.servicenow.com/docs/r/zurich/platform-security/access-control/explore-sgt.html).
 
-In Setup, copy the registered integration UUID, positive signed 64-bit Cato account ID and gateway HTTPS URL ending `/graphql` from the Cato handoff. Select the customer-owned assignment group. Review the ServiceNow origin and select the credential and receiver user. Select native values for the five states and three hold reasons, impact/urgency inputs for priorities 1–5, and a resolution code. Configure the optional title filter under Routing options.
+In Setup, copy the registered integration UUID, positive signed 64-bit Cato account ID and gateway HTTPS URL ending `/graphql` from the Cato handoff. Select the customer-owned assignment group. Review the ServiceNow origin and select the credential and receiver user. Select native values for the five states and three hold reasons, impact/urgency inputs for priorities 1–5, and a resolution code, using the explanation below. Configure the optional title filter under Routing options.
+
+## What Incident mappings mean
+
+**Mappings tell Sync Hub which existing ServiceNow choices mean New, In Progress, On Hold, Resolved and Closed.** They let the integration translate between the customer's incident workflow and Cato's Zendesk tickets. The customer ServiceNow administrator selects these values from the target instance's dropdowns. If the customer's labels match the Setup labels, select the matching choices. Custom labels require the incident process owner's confirmation.
+
+### States and hold reasons
+
+The first five dropdowns select **incident states**:
+
+- **New:** the initial state of an eligible incident that creates a linked Zendesk ticket.
+- **In Progress:** the working state, corresponding to Zendesk Open.
+- **On Hold:** the waiting state. The hold reason below determines what the incident is waiting for.
+- **Resolved:** the state corresponding to Zendesk Solved.
+- **Closed:** the final state applied when Zendesk closes the linked ticket. Select a different state from Resolved. Customer-originated closure is outside the supported synchronization contract.
+
+The next three dropdowns select **hold reasons**, not additional states:
+
+- **Awaiting Caller:** waiting for the customer or caller. This corresponds to Zendesk Pending.
+- **Awaiting Vendor:** waiting for a vendor. This sends Zendesk On-hold.
+- **Awaiting Change:** waiting for a change. This also sends Zendesk On-hold.
+
+For example, when a linked Zendesk ticket becomes Pending, Sync Hub sets the incident to the selected **On Hold** state and the selected **Awaiting Caller** reason. When the incident becomes Resolved, Sync Hub sends Solved to Zendesk. In the reverse direction, a Zendesk On-hold change selects **On Hold / Awaiting Vendor**, because Zendesk's status does not distinguish Vendor from Change. Zendesk's optional On-hold status must be enabled for those holds.
+
+### Priority rows 1–5
+
+Each row answers: **which Impact and Urgency inputs produce this ServiceNow priority?** ServiceNow's native rules can calculate priority from those inputs, so inbound updates must use a compatible combination.
+
+For example, **if** High impact plus High urgency produces Priority 1 on this instance, select those choices in row 1. Repeat for priorities 2–5 using the customer's actual rules. Do not assume another instance uses the same combinations. Outbound synchronization reads the incident's resulting priority; these rows supply inputs for inbound priority updates.
+
+The current Cato service translates ServiceNow priorities 1, 2 and 3 to Zendesk Urgent, High and Normal. Both priorities 4 and 5 become Low. A Zendesk Low priority change maps back to ServiceNow priority 4; the two systems do not have the same number of priority levels.
+
+### Resolution code and checking your selections
+
+**Resolution code** is the customer-approved native code Sync Hub supplies when an inbound Solved change resolves the incident. Select a valid choice such as the customer's applicable solved code. Closure preserves an existing resolution code, using this default only if the code is missing.
+
+Keep synchronization paused while configuring. Save and Validate check the selected choices, including distinct state values, but cannot prove that native business rules produce the intended priority or accept every transition. Before production activation, use isolated test records to verify all five priority results and the state/hold examples above with Cato. See the [acceptance checklist](acceptance.md).
+
+## Save, validate and activate
 
 Select **Save** while paused. Save creates/verifies the four physical unique indexes before persisting configuration. A storage or property write failure leaves synchronization paused. Review the saved values and retry before activation. Select **Validate** to check saved settings, credential access, table protections, indexes and Incident auditing. It sends no network or incident probe.
 
