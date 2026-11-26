@@ -17,9 +17,8 @@ CatoSyncHub.prototype = {
         var account = this.property('account_id');
         if (!/^[1-9][0-9]{0,18}$/.test(account) || (account.length === 19 && account > '9223372036854775807'))
             throw new Error('INVALID_ACCOUNT_ID');
-        var query = 'mutation Accept($accountId: Int!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { event { id result state } } } }';
-        // Emit the validated integer token directly; Number would round large account IDs.
-        return '{"query":' + JSON.stringify(query) + ',"variables":{"accountId":' + account + ',"event":' + JSON.stringify(event) + '}}';
+        var query = 'mutation Accept($accountId: ID!, $event: SyncHubIngestEventInput!) { syncHub(accountId: $accountId) { ingestEvent(input: $event) { event { id result state } } } }';
+        return JSON.stringify({query: query, variables: {accountId: account, event: event}});
     },
     enabled: function () { return this.property('enabled') === 'true'; },
     integration: function () { return this.property('integration_id'); },

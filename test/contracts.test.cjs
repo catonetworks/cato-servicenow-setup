@@ -8,16 +8,16 @@ function runtime(extra = {}) {
   return context;
 }
 const base = {schemaVersion:1, integrationId:'integration', deliveryId:'11111111-1111-1111-1111-111111111111', operationId:'22222222-2222-2222-2222-222222222222', recordId:'a'.repeat(32), sequence:1, kind:'PATCH', fields:{priority:4}, expected:{priority:5}};
-test('sender encodes a CMA Int account variable without floating point conversion', () => {
+test('sender encodes an ID account string without floating point conversion', () => {
   let account = '9223372036854775807';
   const hub = new (runtime({gs: {getProperty: () => account}}).CatoSyncHub)();
   const event = {eventId: 'escaped"fixture', fields: {title: 'Title \" and newline\n'}};
   for (const id of ['1', '2147483648', '9007199254740993', '9223372036854775807']) {
     account = id;
     const text = hub.graphqlRequest(event);
-    assert.ok(text.includes('"accountId":' + id + ',"event":'));
+    assert.equal(JSON.parse(text).variables.accountId, id);
     const parsed = JSON.parse(text);
-    assert.ok(parsed.query.includes('$accountId: Int!'));
+    assert.ok(parsed.query.includes('$accountId: ID!'));
     assert.deepEqual(parsed.variables.event, event);
   }
   for (const id of ['sandbox', '0', '-1', '+1', '01', '1.5', '9223372036854775808', '1,"forged":true']) {
@@ -275,8 +275,8 @@ test('capture dispatch translates GraphQL enum without rewriting durable source 
     hub.finish=()=>{finished=true;};hub.retry=(work,reason)=>{retry=reason;};
     hub.dispatch();
     assert.equal(sent.variables.event.source.table,'INCIDENT');
-    assert.equal(sent.variables.accountId,42);
-    assert.ok(sent.query.includes('$accountId: Int!'));
+    assert.equal(sent.variables.accountId,'42');
+    assert.ok(sent.query.includes('$accountId: ID!'));
     assert.equal(JSON.parse(row.getValue()).source.table,'incident');
     assert.equal(finished,accepted);
     if(!accepted)assert.equal(retry,'HUB_NOT_ACCEPTED');

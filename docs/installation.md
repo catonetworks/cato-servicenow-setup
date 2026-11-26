@@ -87,7 +87,7 @@ this upgrade does not reset or replay accepted work.
 ### Upgrade to 0.3.3
 
 Upgrade the sender and matching gateway together while capture and dispatch are paused. The
-GraphQL account argument is `Int!`, matching CMA. Configure `account_id` as a positive signed
-64-bit decimal; the sender emits an exact JSON integer without JavaScript Number conversion.
-The gateway rejects string account variables, fractions and overflow. This changes only the
+GraphQL account argument is `ID!`, matching CMA. Configure `account_id` as a positive signed
+64-bit decimal; the sender emits its exact string without JavaScript Number conversion.
+The gateway rejects noncanonical account IDs, fractions and overflow. This changes only the
 GraphQL request envelope; persisted outbox payloads and source/delivery identities are unchanged.
